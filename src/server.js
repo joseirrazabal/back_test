@@ -1,16 +1,28 @@
 import express from "express";
 import { createServer } from "http";
+import morgan from "morgan";
+import helmet from "helmet";
+import cors from "cors";
 
-import routes from "./routes.js";
+require("dotenv").config();
+
+import { notFound, errorHandler } from "./middlewares";
+import routes from "./routes";
 
 const getServer = async () => {
   const app = express();
   const server = createServer(app);
 
+  app.use(morgan("dev"));
+  app.use(helmet());
+  app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
   app.use(routes);
+
+  app.use(notFound);
+  app.use(errorHandler);
 
   return server;
 };
