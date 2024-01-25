@@ -9,10 +9,6 @@ import config from "./config";
 import { notFound, errorHandler } from "./middlewares";
 import routes from "./routes";
 
-console.log(process.env);
-console.log("===============");
-console.log(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
-
 const getServer = async () => {
   const app = express();
   const server = createServer(app);
