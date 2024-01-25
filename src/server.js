@@ -4,7 +4,7 @@ import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
 
-require("dotenv").config();
+import config from "./config";
 
 import { notFound, errorHandler } from "./middlewares";
 import routes from "./routes";
@@ -28,7 +28,7 @@ const getServer = async () => {
 };
 
 let server;
-const port = process.env.PORT || 3000;
+const port = config.PORT || 3001;
 
 function onError(error) {
   if (error.syscall !== "listen") {
