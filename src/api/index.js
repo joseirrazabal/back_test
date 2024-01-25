@@ -17,18 +17,22 @@ router.get("/productos", async (_req, res) => {
   res.json(productos);
 });
 
-router.get("/login", async (req, res) => {
-  const username = req.body.user;
-  const password = req.body.pass;
+router.post("/login", async (req, res) => {
+  const username = req.body.username;
+  const password = req.body.password;
 
   const usuarios = await getData(credentials, spreadsheetId, "usuarios");
-  usuarios.map((user) => {
-    if (user.username === username && user.password === password) {
-      res.json({ token: true });
-    }
-  });
+  let token = false;
 
-  res.json({ token: false });
+  await Promise.all(
+    usuarios.map((user) => {
+      if (user.username === username && user.password === password) {
+        token = true;
+      }
+    }),
+  );
+
+  res.json({ token });
 });
 
 export default router;
