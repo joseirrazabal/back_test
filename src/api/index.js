@@ -6,7 +6,7 @@ import getData from "./getDataGSheet";
 // import productos from "./listadoProductos";
 // import usuarios from "./listadoUsuarios";
 
-const credentials = JSON.parse(config.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4";
 
 const router = express.Router();

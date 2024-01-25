@@ -1,5 +1,12 @@
 import dotenv from "dotenv";
 
-const config = dotenv.config();
+dotenv.config();
 
-export default config?.parsed;
+const config = {
+  GOOGLE_APPLICATION_CREDENTIALS_JSON:
+    (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON &&
+      JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)) ||
+    "",
+};
+
+export default config;
