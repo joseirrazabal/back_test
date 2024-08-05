@@ -17,6 +17,12 @@ router.get("/productos", async (_req, res) => {
   res.json(productos);
 });
 
+router.get("/bancos", async (_req, res) => {
+  const bancos = await getData(credentials, spreadsheetId, "bancos");
+
+  res.json(bancos);
+});
+
 router.post("/login", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
