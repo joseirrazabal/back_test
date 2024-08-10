@@ -23,6 +23,12 @@ router.get("/bancos", async (_req, res) => {
   res.json(bancos);
 });
 
+router.get("/usuarios", async (_req, res) => {
+  const users = await getData(credentials, spreadsheetId, "usuarios");
+
+  res.json(users);
+});
+
 router.post("/login", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
