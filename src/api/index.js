@@ -30,21 +30,24 @@ router.get("/usuarios", async (_req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const username = req.body.username;
-  const password = req.body.password;
+  const { username, password } = req.body;
 
-  const usuarios = await getData(credentials, spreadsheetId, "usuarios");
-  let token = false;
+  try {
+    const usuarios = await getData(credentials, spreadsheetId, "usuarios");
+    let usuarioEncontrado = usuarios.find(user => user.username === username && user.password === password);
 
-  await Promise.all(
-    usuarios.map((user) => {
-      if (user.username === username && user.password === password) {
-        token = true;
-      }
-    }),
-  );
-
-  res.json({ token });
+    if (usuarioEncontrado) {
+      // Si las credenciales son correctas, envía una respuesta afirmativa y el nombre de usuario
+      res.json({ success: true, message: "Login exitoso.", username });
+    } else {
+      // Si las credenciales no coinciden, notifica al usuario
+      res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos." });
+    }
+  } catch (error) {
+    // Manejo de errores en caso de problemas con la base de datos o el servidor
+    console.error('Error en la autenticación:', error);
+    res.status(500).json({ success: false, message: "Error interno del servidor." });
+  }
 });
 
 export default router;
