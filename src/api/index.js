@@ -27,19 +27,19 @@ router.post("/login", async (req, res) => {
 
   const usuarios = await getData(credentials, spreadsheetId, "usuarios");
   let token = false;
-  let userName = null;
+  let authenticatedUsername = null;
 
   await Promise.all(
     usuarios.map((user) => {
       if (user.username === username && user.password === password) {
         token = true;
-        userName = user.name;  // Supongamos que 'name' es el campo que almacena el nombre completo
+        authenticatedUsername = user.username;  // Devolver el username autenticado
       }
     }),
   );
 
   if (token) {
-    res.json({ token, name: userName });
+    res.json({ token, username: authenticatedUsername });
   } else {
     res.json({ token: false });
   }
