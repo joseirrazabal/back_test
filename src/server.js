@@ -28,7 +28,7 @@ const getServer = async () => {
 };
 
 let server;
-const port = config.PORT || 3001;
+const port = config.PORT || 4000;
 
 function onError(error) {
   if (error.syscall !== "listen") {
