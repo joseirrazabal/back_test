@@ -3,6 +3,7 @@ import { createServer } from "http";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
+import compression from "compression";  // Importar la librería de compresión
 
 import config from "./config";
 
@@ -18,6 +19,7 @@ const getServer = async () => {
   app.use(helmet());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use(compression());  // Usar la compresión en todas las respuestas
 
   app.use(routes);
 
