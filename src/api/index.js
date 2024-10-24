@@ -1,6 +1,6 @@
-import express from "express";
-import config from "../config";
-import getData from "./getDataGSheet";
+import express from "express"
+import config from "../config"
+import getData from "./getDataGSheet"
 
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4";

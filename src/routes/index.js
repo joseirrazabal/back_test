@@ -1,4 +1,4 @@
-import express from "express";
+import express from "express"
 
 const router = express.Router();
 
@@ -10,4 +10,4 @@ router.get("/healthcheck", (req, res) => {
   res.send("ok");
 });
 
-export default router;
+export default router
