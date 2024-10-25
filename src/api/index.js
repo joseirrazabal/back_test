@@ -22,8 +22,8 @@ router.get("/usuarios", async (_req, res) => {
 // Ruta para el login
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  const usuarios = await getData(credentials, spreadsheetId, "usuarios"); // Asegúrate de que este getData funcione correctamente.
-  
+  const usuarios = await getData(credentials, spreadsheetId, "usuarios");
+
   let authenticatedUser = null;
 
   // Buscar el usuario en la lista
@@ -34,40 +34,37 @@ router.post("/login", async (req, res) => {
   });
 
   if (authenticatedUser) {
-    // Autenticación exitosa
     res.json({ token: 'authtoken', username: authenticatedUser.username });
   } else {
-    // Usuario o contraseña incorrectos
     res.json({ token: false });
   }
 });
 
-// Nueva ruta para el registro
+// Ruta para el registro
 router.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
   try {
     const auth = new google.auth.GoogleAuth({
-      credentials,
+      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Insertar los datos del nuevo usuario en la hoja de Google Sheets
     await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'usuarios!A:B',  // Cambiamos el rango a A y B para que coincida con el otro archivo
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,  // Se recomienda usar la variable de entorno
+      range: 'usuarios!A:B',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[username, password]], // Datos a agregar
+        values: [[username, password]],
       },
     });
 
     res.json({ success: true, message: 'Usuario registrado con éxito' });
   } catch (error) {
-    console.error("Error al registrar el usuario:", error.message);
-    res.status(500).json({ success: false, message: 'Hubo un problema al registrar el usuario' });
+    console.error("Error al registrar el usuario:", error);
+    res.status(500).json({ success: false, message: 'Hubo un problema al registrar el usuario', error: error.message });
   }
 });
 

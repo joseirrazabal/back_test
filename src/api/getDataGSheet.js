@@ -9,7 +9,6 @@ const readGoogleSheet = async (spreadsheetId, range) => {
   });
 
   const client = await auth.getClient();
-
   const googleSheets = google.sheets({ version: 'v4', auth: client });
 
   try {

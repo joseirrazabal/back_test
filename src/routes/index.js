@@ -28,14 +28,14 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Ruta para el registro
+// Ruta para el registro de usuario
 router.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
   try {
     // Carga de credenciales para Google Sheets
     const auth = new google.auth.GoogleAuth({
-      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS, // Usa el archivo de credenciales
+      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
@@ -43,18 +43,39 @@ router.post("/register", async (req, res) => {
 
     // Agregar usuario a la hoja de Google Sheets
     await sheets.spreadsheets.values.append({
-      spreadsheetId: spreadsheetId,  // Asegúrate de que este es el ID correcto
-      range: 'usuarios!A:B',  // Especifica el rango en la hoja de Google Sheets, por ejemplo, columnas A y B
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,  // Se recomienda usar la variable de entorno
+      range: 'usuarios!A:B',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[username, password]],  // Datos a agregar en la hoja
+        values: [[username, password]],
       },
     });
 
     res.json({ success: true, message: 'Usuario registrado con éxito' });
   } catch (error) {
-    console.error("Error al registrar el usuario:", error.message);
-    res.status(500).json({ success: false, message: 'Hubo un problema al registrar el usuario' });
+    console.error("Error al registrar el usuario:", error);
+    res.status(500).json({ success: false, message: 'Hubo un problema al registrar el usuario', error: error.message });
+  }
+});
+
+// Ruta para probar la conexión con Google Sheets
+router.get("/test-google-sheets", async (_req, res) => {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+    });
+
+    res.json({ success: true, sheets: response.data.sheets });
+  } catch (error) {
+    console.error("Error conectando a Google Sheets:", error.message);
+    res.status(500).json({ success: false, message: 'No se pudo conectar a Google Sheets', error: error.message });
   }
 });
 
