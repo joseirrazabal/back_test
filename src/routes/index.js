@@ -28,7 +28,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Registro de usuario en routes/index.js
+// Ruta para el registro de usuario
 router.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
@@ -58,7 +58,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-
 // Ruta para probar la conexión con Google Sheets
 router.get("/test-google-sheets", async (_req, res) => {
   try {
@@ -79,6 +78,5 @@ router.get("/test-google-sheets", async (_req, res) => {
     res.status(500).json({ success: false, message: 'No se pudo conectar a Google Sheets', error: error.message });
   }
 });
-
 
 export default router;
