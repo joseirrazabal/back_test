@@ -42,33 +42,35 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Nueva ruta para el registro
+// Registro de usuario en routes/index.js
 router.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    // Carga de credenciales para Google Sheets
     const auth = new google.auth.GoogleAuth({
-      credentials,
+      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Insertar los datos del nuevo usuario en la hoja de Google Sheets
+    // Agregar usuario a la hoja de Google Sheets
     await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'usuarios!A:B',  // Cambiamos el rango a A y B para que coincida con el otro archivo
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,  // Se recomienda usar la variable de entorno
+      range: 'usuarios!A:B',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[username, password]], // Datos a agregar
+        values: [[username, password]],
       },
     });
 
     res.json({ success: true, message: 'Usuario registrado con éxito' });
   } catch (error) {
-    console.error("Error al registrar el usuario:", error.message);
-    res.status(500).json({ success: false, message: 'Hubo un problema al registrar el usuario' });
+    console.error("Error al registrar el usuario:", error);
+    res.status(500).json({ success: false, message: 'Hubo un problema al registrar el usuario', error: error.message });
   }
 });
+
 
 export default router;
