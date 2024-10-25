@@ -1,58 +1,50 @@
-import express from "express"
-import config from "../config"
-import getData from "./getDataGSheet"
-
-const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4";
+import express from "express";
+import getData from "../api/getDataGSheet.js";
+import { google } from 'googleapis';
+import config from "../config";
 
 const router = express.Router();
+const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto
 
+// Ruta para obtener productos (ejemplo)
 router.get("/productos", async (_req, res) => {
   const productos = await getData(credentials, spreadsheetId, "productos");
   res.json(productos);
 });
 
-router.get("/bancos", async (_req, res) => {
-  const bancos = await getData(credentials, spreadsheetId, "bancos");
-  res.json(bancos);
-});
-
+// Ruta para obtener usuarios (ejemplo)
 router.get("/usuarios", async (_req, res) => {
   const users = await getData(credentials, spreadsheetId, "usuarios");
   res.json(users);
 });
 
+// Ruta para el login
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
-
   const usuarios = await getData(credentials, spreadsheetId, "usuarios");
-  let token = false;
-  let authenticatedUsername = null;
 
-  await Promise.all(
-    usuarios.map((user) => {
-      if (user.username === username && user.password === password) {
-        token = true;
-        authenticatedUsername = user.username;  // Devolver el username autenticado
-      }
-    }),
-  );
+  let authenticatedUser = null;
 
-  if (token) {
-    res.json({ token, username: authenticatedUsername });
+  // Buscar el usuario en la lista
+  usuarios.forEach((user) => {
+    if (user.username === username && user.password === password) {
+      authenticatedUser = user;
+    }
+  });
+
+  if (authenticatedUser) {
+    res.json({ token: 'authtoken', username: authenticatedUser.username });
   } else {
     res.json({ token: false });
   }
 });
 
-<<<<<<< Updated upstream
-=======
-// Registro de usuario en routes/index.js
+// Ruta para el registro
 router.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Carga de credenciales para Google Sheets
     const auth = new google.auth.GoogleAuth({
       keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -60,7 +52,6 @@ router.post("/register", async (req, res) => {
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Agregar usuario a la hoja de Google Sheets
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,  // Se recomienda usar la variable de entorno
       range: 'usuarios!A:B',
@@ -77,6 +68,4 @@ router.post("/register", async (req, res) => {
   }
 });
 
-
->>>>>>> Stashed changes
 export default router;

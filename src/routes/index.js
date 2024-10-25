@@ -1,19 +1,34 @@
-import express from "express"
+import express from "express";
+import getData from "../api/getDataGSheet";
+import { google } from 'googleapis';
+import config from "../config";
 
 const router = express.Router();
+const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto de tu hoja de Google Sheets
 
-import api from "../api";
+// Ruta para el login
+router.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  const usuarios = await getData(credentials, spreadsheetId, "usuarios");
+  let token = false;
+  let authenticatedUsername = null;
 
-router.use("/api", api);
+  usuarios.forEach((user) => {
+    if (user.username === username && user.password === password) {
+      token = true;
+      authenticatedUsername = user.username;
+    }
+  });
 
-router.get("/healthcheck", (req, res) => {
-  res.send("ok");
+  if (token) {
+    res.json({ token, username: authenticatedUsername });
+  } else {
+    res.json({ token: false });
+  }
 });
 
-<<<<<<< Updated upstream
-export default router
-=======
-// Registro de usuario en routes/index.js
+// Ruta para el registro de usuario
 router.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
@@ -43,7 +58,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-
 // Ruta para probar la conexión con Google Sheets
 router.get("/test-google-sheets", async (_req, res) => {
   try {
@@ -65,6 +79,4 @@ router.get("/test-google-sheets", async (_req, res) => {
   }
 });
 
-
 export default router;
->>>>>>> Stashed changes

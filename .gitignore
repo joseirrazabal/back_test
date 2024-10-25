@@ -128,9 +128,12 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
-credentials/*.json
 
-# Ignorar archivos de credenciales
+# Ignorar toda la carpeta de credenciales
 credentials/
+
+# Ignorar archivos de configuración y credenciales específicos
+credentials/stremlive-e70b11057230.json
+credentials/client_secret_26821384215-qnq0dudvhq3l438r870j6tlt55hjfius.apps.googleusercontent.com.json
 *.json
 *.env

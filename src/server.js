@@ -1,25 +1,37 @@
-import express from "express";
+import 'dotenv/config'; // Esto carga las variables de entorno desde el archivo .env
+import express from 'express';
 import { createServer } from "http";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
 
 import config from "./config";
-
 import { notFound, errorHandler } from "./middlewares";
-import routes from "./routes";
+import routes from "./routes"; // Importamos las rutas desde routes/index.js
 
 const getServer = async () => {
   const app = express();
   const server = createServer(app);
 
-  app.use(cors())
-  app.use(morgan("dev"))
-  app.use(helmet())
-  app.use(express.json())
-  app.use(express.urlencoded({ extended: true }))
+  app.use(cors());
+  app.use(morgan("dev"));
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          "default-src": ["'self'"], // Solo permitir scripts desde el propio dominio
+          "script-src": ["'self'", "'unsafe-inline'"], // Permitir scripts inline si es necesario
+          "style-src": ["'self'", "'unsafe-inline'"],  // Permitir estilos inline
+          "img-src": ["'self'", "data:"], // Permitir imágenes desde el propio dominio y de tipo data
+        },
+      },
+    })
+  );
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
-  app.use(routes);
+  // Montar las rutas bajo el prefijo /api
+  app.use('/api', routes);
 
   app.use(notFound);
   app.use(errorHandler);
