@@ -1,13 +1,13 @@
-import 'dotenv/config'; // Esto carga las variables de entorno desde el archivo .env
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from "http";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
 
-import config from "./config";
+import config from "./config";  // Aquí importamos config
 import { notFound, errorHandler } from "./middlewares";
-import routes from "./routes"; // Importamos las rutas desde routes/index.js
+import routes from "./routes"; 
 
 const getServer = async () => {
   const app = express();
@@ -19,10 +19,10 @@ const getServer = async () => {
     helmet({
       contentSecurityPolicy: {
         directives: {
-          "default-src": ["'self'"], // Solo permitir scripts desde el propio dominio
-          "script-src": ["'self'", "'unsafe-inline'"], // Permitir scripts inline si es necesario
-          "style-src": ["'self'", "'unsafe-inline'"],  // Permitir estilos inline
-          "img-src": ["'self'", "data:"], // Permitir imágenes desde el propio dominio y de tipo data
+          "default-src": ["'self'"], 
+          "script-src": ["'self'", "'unsafe-inline'"], 
+          "style-src": ["'self'", "'unsafe-inline'"], 
+          "img-src": ["'self'", "data:"], 
         },
       },
     })
