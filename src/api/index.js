@@ -1,7 +1,10 @@
 import express from "express";
-import getData from "../api/getDataGSheet.js";
-import { google } from 'googleapis';
+import { google } from "googleapis";
+import jwt from "jsonwebtoken";
+
 import config from "../config";
+
+import getData from "../api/getDataGSheet.js";
 
 const router = express.Router();
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
@@ -23,7 +26,7 @@ router.get("/usuarios", async (_req, res) => {
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
   const usuarios = await getData(credentials, spreadsheetId, "usuarios"); // Asegúrate de que este getData funcione correctamente.
-  
+
   let authenticatedUser = null;
 
   // Buscar el usuario en la lista
@@ -34,11 +37,19 @@ router.post("/login", async (req, res) => {
   });
 
   if (authenticatedUser) {
+    const jwtSecret = config.JWT_SECRET || "supersecretkey"; // Clave secreta para firmar el token JWT
     // Autenticación exitosa
-    res.json({ token: 'authtoken', username: authenticatedUser.username });
+    const token = jwt.sign(
+      { username: authenticatedUser.username },
+      jwtSecret,
+      { expiresIn: "1h" },
+    );
+
+    res.json({ token: token, username: authenticatedUser.username });
   } else {
     // Usuario o contraseña incorrectos
     res.json({ token: false });
+    // res.status(401).json({ error: "Usuario o contraseña incorrectos" });
   }
 });
 
@@ -49,25 +60,28 @@ router.post("/register", async (req, res) => {
   try {
     const auth = new google.auth.GoogleAuth({
       credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
-    const sheets = google.sheets({ version: 'v4', auth });
+    const sheets = google.sheets({ version: "v4", auth });
 
     // Insertar los datos del nuevo usuario en la hoja de Google Sheets
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'usuarios!A:B',  // Cambiamos el rango a A y B para que coincida con el otro archivo
-      valueInputOption: 'RAW',
+      range: "usuarios!A:B", // Cambiamos el rango a A y B para que coincida con el otro archivo
+      valueInputOption: "RAW",
       requestBody: {
         values: [[username, password]], // Datos a agregar
       },
     });
 
-    res.json({ success: true, message: 'Usuario registrado con éxito' });
+    res.json({ success: true, message: "Usuario registrado con éxito" });
   } catch (error) {
     console.error("Error al registrar el usuario:", error.message);
-    res.status(500).json({ success: false, message: 'Hubo un problema al registrar el usuario' });
+    res.status(500).json({
+      success: false,
+      message: "Hubo un problema al registrar el usuario",
+    });
   }
 });
 

@@ -1,13 +1,13 @@
-import 'dotenv/config';
-import express from 'express';
+import "dotenv/config";
+import express from "express";
 import { createServer } from "http";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
 
-import config from "./config";  // Aquí importamos config
+import config from "./config"; // Aquí importamos config
 import { notFound, errorHandler } from "./middlewares";
-import routes from "./routes"; 
+import routes from "./routes";
 
 const getServer = async () => {
   const app = express();
@@ -15,33 +15,36 @@ const getServer = async () => {
 
   // Configuración de CORS para permitir solo el dominio de Netlify
   const allowedOrigins = [
-    'https://redsinlimites.netlify.app'  // Reemplaza con el dominio de tu app en Netlify
+    "http://localhost:3000",
+    "https://redsinlimites.netlify.app", // Reemplaza con el dominio de tu app en Netlify
   ];
 
-  app.use(cors({
-    origin: allowedOrigins,
-    methods: 'GET,POST,PUT,DELETE',
-    credentials: true,
-  }));
+  app.use(
+    cors({
+      origin: allowedOrigins,
+      methods: "GET,POST,PUT,DELETE",
+      credentials: true,
+    }),
+  );
 
   app.use(morgan("dev"));
   app.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
-          "default-src": ["'self'"], 
-          "script-src": ["'self'", "'unsafe-inline'"], 
-          "style-src": ["'self'", "'unsafe-inline'"], 
-          "img-src": ["'self'", "data:"], 
+          "default-src": ["'self'"],
+          "script-src": ["'self'", "'unsafe-inline'"],
+          "style-src": ["'self'", "'unsafe-inline'"],
+          "img-src": ["'self'", "data:"],
         },
       },
-    })
+    }),
   );
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
   // Montar las rutas bajo el prefijo /api
-  app.use('/api', routes);
+  app.use(routes);
 
   app.use(notFound);
   app.use(errorHandler);
@@ -50,7 +53,7 @@ const getServer = async () => {
 };
 
 let server;
-const port = config.PORT || 4000;
+const port = config.PORT || 3001;
 
 function onError(error) {
   if (error.syscall !== "listen") {
