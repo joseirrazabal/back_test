@@ -1,7 +1,10 @@
 import express from "express";
-import getData from "../api/getDataGSheet.js";
-import { google } from 'googleapis';
+import { google } from "googleapis";
+import jwt from "jsonwebtoken";
+
 import config from "../config";
+
+import getData from "../api/getDataGSheet.js";
 
 const router = express.Router();
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
@@ -34,9 +37,18 @@ router.post("/login", async (req, res) => {
   });
 
   if (authenticatedUser) {
-    res.json({ token: 'authtoken', username: authenticatedUser.username });
+    const jwtSecret = config.JWT_SECRET || "supersecretkey"; // Clave secreta para firmar el token JWT
+    // Autenticación exitosa
+    const token = jwt.sign(
+      { username: authenticatedUser.username },
+      jwtSecret,
+      { expiresIn: "1h" },
+    );
+
+    res.json({ token: token, username: authenticatedUser.username });
   } else {
     res.json({ token: false });
+    // res.status(401).json({ error: "Usuario o contraseña incorrectos" });
   }
 });
 
@@ -46,25 +58,28 @@ router.post("/register", async (req, res) => {
 
   try {
     const auth = new google.auth.GoogleAuth({
-      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
-    const sheets = google.sheets({ version: 'v4', auth });
+    const sheets = google.sheets({ version: "v4", auth });
 
     await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,  // Se recomienda usar la variable de entorno
-      range: 'usuarios!A:B',
-      valueInputOption: 'RAW',
+      spreadsheetId,
+      range: "usuarios!A:B", // Cambiamos el rango a A y B para que coincida con el otro archivo
+      valueInputOption: "RAW",
       requestBody: {
         values: [[username, password]],
       },
     });
 
-    res.json({ success: true, message: 'Usuario registrado con éxito' });
+    res.json({ success: true, message: "Usuario registrado con éxito" });
   } catch (error) {
-    console.error("Error al registrar el usuario:", error);
-    res.status(500).json({ success: false, message: 'Hubo un problema al registrar el usuario', error: error.message });
+    console.error("Error al registrar el usuario:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Hubo un problema al registrar el usuario",
+    });
   }
 });
 
