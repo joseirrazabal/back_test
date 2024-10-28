@@ -1,30 +1,40 @@
 import express from "express";
 import getData from "../api/getDataGSheet";
+import jwt from 'jsonwebtoken';
 import { google } from 'googleapis';
 import config from "../config";
 
 const router = express.Router();
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto de tu hoja de Google Sheets
+const jwtSecret = process.env.JWT_SECRET || 'supersecretkey'; // Clave secreta para firmar el token JWT
 
 // Ruta para el login
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  const usuarios = await getData(credentials, spreadsheetId, "usuarios");
-  let token = false;
-  let authenticatedUsername = null;
+  console.log("Datos recibidos:", { username, password });
 
+  const usuarios = await getData(credentials, spreadsheetId, "usuarios");
+  console.log("Usuarios en la hoja:", usuarios);
+
+  let authenticatedUser = null;
+
+  // Buscar usuario y autenticar
   usuarios.forEach((user) => {
     if (user.username === username && user.password === password) {
-      token = true;
-      authenticatedUsername = user.username;
+      authenticatedUser = user;
     }
   });
 
-  if (token) {
-    res.json({ token, username: authenticatedUsername });
+  if (authenticatedUser) {
+    const token = jwt.sign(
+      { username: authenticatedUser.username },
+      jwtSecret,
+      { expiresIn: '1h' }
+    );
+    res.json({ token, username: authenticatedUser.username });
   } else {
-    res.json({ token: false });
+    res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
   }
 });
 

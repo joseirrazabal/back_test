@@ -13,7 +13,17 @@ const getServer = async () => {
   const app = express();
   const server = createServer(app);
 
-  app.use(cors());
+  // Configuración de CORS para permitir solo el dominio de Netlify
+  const allowedOrigins = [
+    'https://redsinlimites.netlify.app'  // Reemplaza con el dominio de tu app en Netlify
+  ];
+
+  app.use(cors({
+    origin: allowedOrigins,
+    methods: 'GET,POST,PUT,DELETE',
+    credentials: true,
+  }));
+
   app.use(morgan("dev"));
   app.use(
     helmet({

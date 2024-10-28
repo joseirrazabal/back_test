@@ -2,9 +2,9 @@ import { google } from 'googleapis';
 import config from '../config'; // Importamos la configuración
 
 const readGoogleSheet = async (spreadsheetId, range) => {
-  // Configuración de GoogleAuth usando el contenido de las credenciales JSON desde una variable de entorno
+  // Configuración de GoogleAuth usando el archivo de credenciales
   const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON), // Aquí utilizas directamente el contenido JSON de las credenciales
+    keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS, // Usa la ruta del archivo de credenciales
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
@@ -14,8 +14,8 @@ const readGoogleSheet = async (spreadsheetId, range) => {
 
   try {
     const response = await googleSheets.spreadsheets.values.get({
-      spreadsheetId,
-      range,
+      spreadsheetId: "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4", // Asegúrate de que este ID es correcto
+      range: "usuarios!A:B",  // Asegúrate de que el nombre de la pestaña es "usuarios"
     });
 
     const rows = response.data.values;
@@ -30,11 +30,11 @@ const readGoogleSheet = async (spreadsheetId, range) => {
         return obj;
       });
     } else {
-      console.log('No data found.');
+      console.log('No se encontraron datos en la hoja de cálculo.');
       return [];
     }
   } catch (error) {
-    console.error("Error while reading Google Sheet:", error.message);
+    console.error("Error al leer Google Sheet:", error.message);
     return [];
   }
 };
