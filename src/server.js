@@ -16,7 +16,7 @@ const getServer = async () => {
   // Configuración de CORS para permitir solo el dominio de Netlify
   const allowedOrigins = [
     "http://localhost:3000",
-    "https://redsinlimites.netlify.app", // Reemplaza con el dominio de tu app en Netlify
+    "https://catalogosimple.ar"
   ];
 
   app.use(
@@ -27,18 +27,17 @@ const getServer = async () => {
     }),
   );
 
-  app.use(morgan("dev"));
   app.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
           "default-src": ["'self'"],
-          "script-src": ["'self'", "'unsafe-inline'"],
+          "script-src": ["'self'", "'unsafe-inline'", "https://catalogosimple.ar"],
           "style-src": ["'self'", "'unsafe-inline'"],
-          "img-src": ["'self'", "data:"],
+          "img-src": ["'self'", "data:", "https://catalogosimple.ar"],
         },
       },
-    }),
+    })
   );
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
