@@ -9,6 +9,51 @@ const router = express.Router();
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto
 
+// Ruta para obtener extras (incluye banner)
+router.get("/extras", async (_req, res) => {
+  try {
+    const extras = await getData(credentials, spreadsheetId, "extras"); // Cambiar "extras" si el nombre de la pestaña es otro
+    console.log("Datos obtenidos de extras:", extras); // Agregar log para debugging
+    res.json(extras);
+  } catch (error) {
+    console.error("Error al obtener extras:", error.message);
+    res.status(500).json({ message: "Error al obtener extras" });
+  }
+});
+
+
+// Ruta para agregar o actualizar extras
+router.post("/extras", async (req, res) => {
+  const { banner } = req.body;
+
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // Añadir los datos de banner al Google Sheets
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "extras!A:B", // Cambia esto según las columnas donde guardas los datos
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[banner]],
+      },
+    });
+
+    res.json({ success: true, message: "Extras actualizado con éxito" });
+  } catch (error) {
+    console.error("Error al actualizar extras:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Hubo un problema al actualizar extras",
+    });
+  }
+});
+
 // Ruta para obtener productos
 router.get("/productos", async (_req, res) => {
   try {
