@@ -21,7 +21,6 @@ router.get("/extras", async (_req, res) => {
   }
 });
 
-
 // Ruta para agregar o actualizar extras
 router.post("/extras", async (req, res) => {
   const { banner } = req.body;
@@ -89,7 +88,7 @@ router.get("/bancos", async (_req, res) => {
 
 // Ruta para el login
 router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, deviceId } = req.body; // Se agrega deviceId
   try {
     const usuarios = await getData(credentials, spreadsheetId, "usuarios");
 
@@ -103,17 +102,45 @@ router.post("/login", async (req, res) => {
     if (authenticatedUser) {
       const jwtSecret = config.JWT_SECRET || "supersecretkey";
       const token = jwt.sign(
-        { username: authenticatedUser.username },
+        { username: authenticatedUser.username, deviceId },
         jwtSecret,
         { expiresIn: "1h" }
       );
+
+      // Actualizamos el dispositivo en la base de datos
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      });
+
+      const sheets = google.sheets({ version: "v4", auth });
+
+      const rowIndex = usuarios.findIndex(
+        (user) => user.username === authenticatedUser.username
+      );
+
+      if (rowIndex !== -1) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `usuarios!C${rowIndex + 2}`, // Columna C para guardar el deviceId
+          valueInputOption: "RAW",
+          requestBody: {
+            values: [[deviceId]],
+          },
+        });
+      }
+
       res.json({ token: token, username: authenticatedUser.username });
     } else {
-      res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
+      res
+        .status(401)
+        .json({ success: false, message: "Usuario o contraseña incorrectos" });
     }
   } catch (error) {
     console.error("Error en el login:", error.message);
-    res.status(500).json({ success: false, message: "Error al intentar el login" });
+    res
+      .status(500)
+      .json({ success: false, message: "Error al intentar el login" });
   }
 });
 
