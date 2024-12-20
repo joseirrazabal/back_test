@@ -9,11 +9,28 @@ const router = express.Router();
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto
 
-// Ruta para obtener extras (incluye banner)
+// Middleware para autenticar al administrador
+const authenticateAdmin = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Token no proporcionado" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, config.JWT_SECRET || "supersecretkey");
+    if (decoded.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Acceso denegado" });
+    }
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Token inválido" });
+  }
+};
+
+// Ruta para obtener extras
 router.get("/extras", async (_req, res) => {
   try {
-    const extras = await getData(credentials, spreadsheetId, "extras"); // Cambiar "extras" si el nombre de la pestaña es otro
-    console.log("Datos obtenidos de extras:", extras); // Agregar log para debugging
+    const extras = await getData(credentials, spreadsheetId, "extras");
     res.json(extras);
   } catch (error) {
     console.error("Error al obtener extras:", error.message);
@@ -33,10 +50,9 @@ router.post("/extras", async (req, res) => {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // Añadir los datos de banner al Google Sheets
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "extras!A:B", // Cambia esto según las columnas donde guardas los datos
+      range: "extras!A:B",
       valueInputOption: "RAW",
       requestBody: {
         values: [[banner]],
@@ -78,7 +94,7 @@ router.get("/usuarios", async (_req, res) => {
 // Ruta para obtener bancos
 router.get("/bancos", async (_req, res) => {
   try {
-    const bancos = await getData(credentials, spreadsheetId, "bancos"); // Asegúrate de que el nombre de la pestaña sea correcto
+    const bancos = await getData(credentials, spreadsheetId, "bancos");
     res.json(bancos);
   } catch (error) {
     console.error("Error al obtener datos de bancos:", error.message);
@@ -88,7 +104,8 @@ router.get("/bancos", async (_req, res) => {
 
 // Ruta para el login
 router.post("/login", async (req, res) => {
-  const { username, password, deviceId } = req.body; // Se agrega deviceId
+  const { username, password, deviceId } = req.body;
+
   try {
     const usuarios = await getData(credentials, spreadsheetId, "usuarios");
 
@@ -107,7 +124,6 @@ router.post("/login", async (req, res) => {
         { expiresIn: "1h" }
       );
 
-      // Actualizamos el dispositivo en la base de datos
       const auth = new google.auth.GoogleAuth({
         credentials,
         scopes: ["https://www.googleapis.com/auth/spreadsheets"],
@@ -115,14 +131,16 @@ router.post("/login", async (req, res) => {
 
       const sheets = google.sheets({ version: "v4", auth });
 
+      // Invalida todas las sesiones previas del usuario
       const rowIndex = usuarios.findIndex(
         (user) => user.username === authenticatedUser.username
       );
 
       if (rowIndex !== -1) {
+        // Limpiar los `deviceId` existentes y establecer el nuevo
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `usuarios!C${rowIndex + 2}`, // Columna C para guardar el deviceId
+          range: `usuarios!C${rowIndex + 2}`,
           valueInputOption: "RAW",
           requestBody: {
             values: [[deviceId]],
@@ -144,6 +162,62 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// Ruta privada para listar usuarios con sesiones activas
+router.get("/admin/multiple-sessions", authenticateAdmin, async (_req, res) => {
+  try {
+    const usuarios = await getData(credentials, spreadsheetId, "usuarios");
+
+    // Filtrar usuarios con sesiones activas
+    const usuariosConSesion = usuarios.filter((user) => user.deviceId);
+
+    res.json({
+      success: true,
+      usuarios: usuariosConSesion.map((user, index) => ({
+        id: index + 1,
+        username: user.username,
+        deviceId: user.deviceId,
+      })),
+    });
+  } catch (error) {
+    console.error("Error al obtener usuarios con sesiones activas:", error.message);
+    res.status(500).json({ success: false, message: "Error al obtener usuarios" });
+  }
+});
+
+// Ruta privada para cerrar sesión de un usuario específico
+router.post("/admin/logout-user", authenticateAdmin, async (req, res) => {
+  const { username } = req.body;
+
+  try {
+    const usuarios = await getData(credentials, spreadsheetId, "usuarios");
+    const rowIndex = usuarios.findIndex((user) => user.username === username);
+
+    if (rowIndex === -1) {
+      return res.status(404).json({ success: false, message: "Usuario no encontrado" });
+    }
+
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `usuarios!C${rowIndex + 2}`,
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[""]],
+      },
+    });
+
+    res.json({ success: true, message: `Sesión cerrada para el usuario: ${username}` });
+  } catch (error) {
+    console.error("Error al cerrar sesión del usuario:", error.message);
+    res.status(500).json({ success: false, message: "Error al cerrar sesión" });
+  }
+});
+
 // Ruta para el registro
 router.post("/register", async (req, res) => {
   const { username, password } = req.body;
@@ -158,7 +232,7 @@ router.post("/register", async (req, res) => {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "usuarios!A:B", // Cambiamos el rango a A y B para que coincida con el otro archivo
+      range: "usuarios!A:B",
       valueInputOption: "RAW",
       requestBody: {
         values: [[username, password]],
