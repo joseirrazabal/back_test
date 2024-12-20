@@ -131,22 +131,16 @@ router.post("/login", async (req, res) => {
 
       const sheets = google.sheets({ version: "v4", auth });
 
-      // Invalida todas las sesiones previas del usuario
-      const rowIndex = usuarios.findIndex(
-        (user) => user.username === authenticatedUser.username
-      );
-
-      if (rowIndex !== -1) {
-        // Limpiar los `deviceId` existentes y establecer el nuevo
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `usuarios!C${rowIndex + 2}`,
-          valueInputOption: "RAW",
-          requestBody: {
-            values: [[deviceId]],
-          },
-        });
-      }
+      // Actualiza la pestaña active_sessions
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: "active_sessions",
+        valueInputOption: "RAW",
+        requestBody: {
+          values: [[username, token, deviceId, "active"]],
+        },
+      });
+      console.log("Nueva sesión añadida en active_sessions para usuario:", username);
 
       res.json({ token: token, username: authenticatedUser.username });
     } else {
@@ -165,17 +159,17 @@ router.post("/login", async (req, res) => {
 // Ruta privada para listar usuarios con sesiones activas
 router.get("/admin/multiple-sessions", authenticateAdmin, async (_req, res) => {
   try {
-    const usuarios = await getData(credentials, spreadsheetId, "usuarios");
+    const activeSessions = await getData(credentials, spreadsheetId, "active_sessions");
 
-    // Filtrar usuarios con sesiones activas
-    const usuariosConSesion = usuarios.filter((user) => user.deviceId);
+    const usuariosConSesion = activeSessions.filter((row) => row[3] === "active");
+    console.log("Usuarios con sesiones activas:", usuariosConSesion);
 
     res.json({
       success: true,
-      usuarios: usuariosConSesion.map((user, index) => ({
+      usuarios: usuariosConSesion.map((session, index) => ({
         id: index + 1,
-        username: user.username,
-        deviceId: user.deviceId,
+        username: session[0],
+        deviceId: session[2],
       })),
     });
   } catch (error) {
@@ -186,14 +180,16 @@ router.get("/admin/multiple-sessions", authenticateAdmin, async (_req, res) => {
 
 // Ruta privada para cerrar sesión de un usuario específico
 router.post("/admin/logout-user", authenticateAdmin, async (req, res) => {
-  const { username } = req.body;
+  const { username, deviceId } = req.body;
 
   try {
-    const usuarios = await getData(credentials, spreadsheetId, "usuarios");
-    const rowIndex = usuarios.findIndex((user) => user.username === username);
+    const activeSessions = await getData(credentials, spreadsheetId, "active_sessions");
+    const rowIndex = activeSessions.findIndex(
+      (row) => row[0] === username && row[2] === deviceId
+    );
 
     if (rowIndex === -1) {
-      return res.status(404).json({ success: false, message: "Usuario no encontrado" });
+      return res.status(404).json({ success: false, message: "Sesión no encontrada" });
     }
 
     const auth = new google.auth.GoogleAuth({
@@ -204,17 +200,47 @@ router.post("/admin/logout-user", authenticateAdmin, async (req, res) => {
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `usuarios!C${rowIndex + 2}`,
+      range: `active_sessions!A${rowIndex + 2}:D${rowIndex + 2}`,
       valueInputOption: "RAW",
       requestBody: {
-        values: [[""]],
+        values: [[username, "", deviceId, "inactive"]],
       },
     });
 
-    res.json({ success: true, message: `Sesión cerrada para el usuario: ${username}` });
+    console.log(
+      "Sesión cerrada en active_sessions para usuario:",
+      username,
+      "con deviceId:",
+      deviceId
+    );
+
+    res.json({
+      success: true,
+      message: `Sesión cerrada para el usuario: ${username} con deviceId: ${deviceId}`,
+    });
   } catch (error) {
     console.error("Error al cerrar sesión del usuario:", error.message);
     res.status(500).json({ success: false, message: "Error al cerrar sesión" });
+  }
+});
+
+// Ruta para validar la sesión
+router.post("/validate-session", async (req, res) => {
+  const { token, deviceId } = req.body;
+
+  try {
+    const decoded = jwt.verify(token, config.JWT_SECRET || "supersecretkey");
+
+    if (decoded.deviceId === deviceId) {
+      console.log("Validación exitosa para usuario:", decoded.username);
+      return res.json({ valid: true });
+    } else {
+      console.log("Dispositivo no coincide para usuario:", decoded.username);
+      return res.json({ valid: false });
+    }
+  } catch (error) {
+    console.error("Error al validar el token:", error.message);
+    return res.json({ valid: false });
   }
 });
 
