@@ -231,13 +231,23 @@ router.post("/validate-session", async (req, res) => {
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET || "supersecretkey");
 
-    if (decoded.deviceId === deviceId) {
-      console.log("Validación exitosa para usuario:", decoded.username);
-      return res.json({ valid: true });
-    } else {
-      console.log("Dispositivo no coincide para usuario:", decoded.username);
+    const activeSessions = await getData(credentials, spreadsheetId, "active_sessions");
+    const sessionRow = activeSessions.find(
+      (row) => row[0] === decoded.username && row[2] === deviceId
+    );
+
+    if (!sessionRow) {
+      console.log("Sesión no encontrada para usuario:", decoded.username);
+      return res.json({ valid: true }); // Considerar la sesión válida si no se encuentra explícitamente como inactive
+    }
+
+    if (sessionRow[3] === "inactive") {
+      console.log("Sesión marcada como inactiva para usuario:", decoded.username);
       return res.json({ valid: false });
     }
+
+    console.log("Validación exitosa para usuario:", decoded.username);
+    return res.json({ valid: true });
   } catch (error) {
     console.error("Error al validar el token:", error.message);
     return res.json({ valid: false });
