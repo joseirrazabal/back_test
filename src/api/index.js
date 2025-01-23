@@ -254,9 +254,17 @@ router.post("/validate-session", async (req, res) => {
   }
 });
 
-// Ruta para el registro
+// Código actualizado para incluir el rango en el registro
 router.post("/register", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, rango } = req.body; // Incluimos rango en el cuerpo de la solicitud
+
+  if (!username || !password || !rango) {
+    // Validamos que todos los campos estén presentes
+    return res.status(400).json({
+      success: false,
+      message: "Faltan datos requeridos (username, password o rango)",
+    });
+  }
 
   try {
     const auth = new google.auth.GoogleAuth({
@@ -266,12 +274,13 @@ router.post("/register", async (req, res) => {
 
     const sheets = google.sheets({ version: "v4", auth });
 
+    // Aseguramos que se registra el rango junto con el usuario y contraseña
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "usuarios!A:B",
+      range: "usuarios!A:C", // Aseguramos que el rango incluye hasta la columna C
       valueInputOption: "RAW",
       requestBody: {
-        values: [[username, password]],
+        values: [[username, password, rango]], // Incluimos rango aquí
       },
     });
 
