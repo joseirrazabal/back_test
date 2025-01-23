@@ -15,7 +15,7 @@ const getServer = async () => {
   // Configuración de CORS
   const allowedOrigins = [
     "http://localhost:3000",
-    "https://catalogosimple.ar"
+    "https://catalogosimple.ar",
   ];
 
   app.use(
@@ -23,7 +23,7 @@ const getServer = async () => {
       origin: allowedOrigins,
       methods: "GET,POST,PUT,DELETE",
       credentials: true,
-    }),
+    })
   );
 
   app.use(
@@ -46,7 +46,6 @@ const getServer = async () => {
   app.use(notFound);
   app.use(errorHandler);
 
-  console.log("Configuración completa:", config); // Para confirmar que las variables están presentes
   return server;
 };
 
@@ -55,9 +54,9 @@ const port = config.PORT || 3001;
 getServer()
   .then((server) => {
     server.listen(port, () => {
-      console.log(`Servidor escuchando en el puerto ${port}`);
+      console.info(`Servidor en ejecución en el puerto ${port}`); // Mensaje genérico
     });
   })
-  .catch((error) => {
-    console.error("Error durante la inicialización del servidor:", error);
+  .catch(() => {
+    console.error("No se pudo iniciar el servidor. Verifica la configuración."); // Mensaje genérico
   });

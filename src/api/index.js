@@ -140,7 +140,7 @@ router.post("/login", async (req, res) => {
           values: [[username, token, deviceId, "active"]],
         },
       });
-      console.log("Nueva sesión añadida en active_sessions para usuario:", username);
+      /* console.log("Nueva sesión añadida en active_sessions para usuario:", username); */
 
       res.json({ token: token, username: authenticatedUser.username });
     } else {
@@ -162,7 +162,7 @@ router.get("/admin/multiple-sessions", authenticateAdmin, async (_req, res) => {
     const activeSessions = await getData(credentials, spreadsheetId, "active_sessions");
 
     const usuariosConSesion = activeSessions.filter((row) => row[3] === "active");
-    console.log("Usuarios con sesiones activas:", usuariosConSesion);
+   /*  console.log("Usuarios con sesiones activas:", usuariosConSesion); */
 
     res.json({
       success: true,
@@ -207,12 +207,12 @@ router.post("/admin/logout-user", authenticateAdmin, async (req, res) => {
       },
     });
 
-    console.log(
+    /* console.log(
       "Sesión cerrada en active_sessions para usuario:",
       username,
       "con deviceId:",
       deviceId
-    );
+    ); */
 
     res.json({
       success: true,
@@ -237,16 +237,16 @@ router.post("/validate-session", async (req, res) => {
     );
 
     if (!sessionRow) {
-      console.log("Sesión no encontrada para usuario:", decoded.username);
+      /* console.log("Sesión no encontrada para usuario:", decoded.username); */
       return res.json({ valid: true }); // Considerar la sesión válida si no se encuentra explícitamente como inactive
     }
 
     if (sessionRow[3] === "inactive") {
-      console.log("Sesión marcada como inactiva para usuario:", decoded.username);
+      /* console.log("Sesión marcada como inactiva para usuario:", decoded.username); */
       return res.json({ valid: false });
     }
 
-    console.log("Validación exitosa para usuario:", decoded.username);
+    /* console.log("Validación exitosa para usuario:", decoded.username); */
     return res.json({ valid: true });
   } catch (error) {
     console.error("Error al validar el token:", error.message);

@@ -4,7 +4,7 @@ import path from "path";
 
 dotenv.config();
 
-const credentialsPath = path.join(__dirname, "google-credentials.json"); // Definimos credentialsPath
+const credentialsPath = path.join(__dirname, "google-credentials.json");
 
 const credentialsData = {
   type: process.env.GOOGLE_TYPE,
@@ -22,19 +22,19 @@ const credentialsData = {
 };
 
 // Crear el archivo JSON de credenciales solo si no existe
-if (!fs.existsSync(credentialsPath)) {
-  fs.writeFileSync(credentialsPath, JSON.stringify(credentialsData, null, 2));
-  console.log("Archivo de credenciales creado exitosamente");
-} else {
-  console.log("Archivo de credenciales ya existe, no se vuelve a crear.");
+try {
+  if (!fs.existsSync(credentialsPath)) {
+    fs.writeFileSync(credentialsPath, JSON.stringify(credentialsData, null, 2));
+    // console.log("Archivo de credenciales creado exitosamente"); // Eliminado para evitar log sensitivo
+  } else {
+    // console.log("Archivo de credenciales ya existe, no se vuelve a crear."); // Eliminado para evitar log sensitivo
+  }
+} catch (error) {
+  console.error("Error al manejar las credenciales:", error.message); // Mensaje genérico
 }
 
 // Establecer la variable de entorno GOOGLE_APPLICATION_CREDENTIALS con la ruta al archivo JSON
 process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
-console.log(
-  "Variable GOOGLE_APPLICATION_CREDENTIALS:",
-  process.env.GOOGLE_APPLICATION_CREDENTIALS,
-);
 
 const config = {
   PORT: process.env.PORT || 3001,
