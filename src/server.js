@@ -4,9 +4,9 @@ import { createServer } from "http";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
-import config from "./config"; // Aquí importamos config
+import config from "./config";
 import { notFound, errorHandler } from "./middlewares";
-import routes from "./routes";
+import routes from "./routes"; // Aquí importamos las rutas principales
 
 const getServer = async () => {
   const app = express();
@@ -42,8 +42,13 @@ const getServer = async () => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  app.use(routes);
+  // Registrar las rutas principales
+  app.use("/api", routes);
+
+  // Middleware para manejar rutas no encontradas
   app.use(notFound);
+
+  // Middleware para manejar errores generales
   app.use(errorHandler);
 
   return server;
@@ -54,9 +59,9 @@ const port = config.PORT || 3001;
 getServer()
   .then((server) => {
     server.listen(port, () => {
-      console.info(`Servidor en ejecución en el puerto ${port}`); // Mensaje genérico
+      console.info(`Servidor en ejecución en el puerto ${port}`);
     });
   })
   .catch(() => {
-    console.error("No se pudo iniciar el servidor. Verifica la configuración."); // Mensaje genérico
+    console.error("No se pudo iniciar el servidor. Verifica la configuración.");
   });
