@@ -38,6 +38,7 @@ process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
 
 const config = {
   PORT: process.env.PORT || 3001,
+  JWT_SECRET: process.env.JWT_SECRET || "supersecretkey1234", // Asegurar que está definido
   GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS,
   GOOGLE_APPLICATION_CREDENTIALS_JSON:
     (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON &&
