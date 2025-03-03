@@ -4,10 +4,38 @@ import jwt from "jsonwebtoken";
 
 import config from "../config";
 import getData from "../api/getDataGSheet.js";
+import { v4 as uuidv4 } from "uuid";
+import dotenv from "dotenv";
+dotenv.config(); // Carga las variables de entorno
+
 
 const router = express.Router();
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto
+
+console.log("JWT_SECRET en el backend:", process.env.JWT_SECRET);
+
+// Middleware para autenticar usuario
+const authenticateUser = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  console.log("🔍 Token recibido en el backend:", token);
+  console.log("🔐 JWT_SECRET en el backend:", process.env.JWT_SECRET);
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Token no proporcionado" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("✅ Token decodificado correctamente:", decoded);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error("❌ Error al verificar token:", error.message);
+    return res.status(401).json({ success: false, message: "Token inválido o expirado" });
+  }
+};
 
 // Middleware para autenticar al administrador
 const authenticateAdmin = (req, res, next) => {
@@ -15,17 +43,166 @@ const authenticateAdmin = (req, res, next) => {
   if (!token) {
     return res.status(401).json({ success: false, message: "Token no proporcionado" });
   }
-
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET || "supersecretkey");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (decoded.role !== "admin") {
       return res.status(403).json({ success: false, message: "Acceso denegado" });
     }
+    req.user = decoded; // Guarda la info del usuario en la request
     next();
   } catch (error) {
     return res.status(401).json({ success: false, message: "Token inválido" });
   }
 };
+
+// =========================================
+// POST /api/clientes -> Agregar un cliente
+// =========================================
+router.post("/clientes", authenticateUser, async (req, res) => {
+  const { nombre, direccion, banco, phone } = req.body;
+  if (!nombre || !direccion || !banco || !phone) {
+    return res.status(400).json({ success: false, message: "Faltan datos" });
+  }
+
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "clientes!A:E", // Actualizamos el rango para incluir el teléfono
+      valueInputOption: "RAW",
+      requestBody: { values: [[req.user.username, nombre, direccion, banco, phone]] },
+    });
+
+    res.json({ success: true, message: "Cliente agregado correctamente" });
+  } catch (error) {
+    console.error("Error al agregar cliente:", error.message);
+    res.status(500).json({ success: false, message: "Error al agregar cliente" });
+  }
+});
+
+// =========================================
+// POST /api/ventas -> Agregar una venta
+// =========================================
+router.post("/ventas", authenticateUser, async (req, res) => {
+  const { nombreCliente, monto, fecha, producto } = req.body;
+
+  if (!nombreCliente || !monto || !fecha || !producto) {
+    return res.status(400).json({
+      success: false,
+      message: "Faltan datos (nombreCliente, monto, fecha, producto)",
+    });
+  }
+
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const newId = uuidv4(); // Generamos un ID único
+
+    // Guardamos en Google Sheets
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "ventas!A:F", 
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[newId, req.user.username, nombreCliente, monto, fecha, producto]],
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Venta registrada correctamente",
+      id: newId,
+    });
+  } catch (error) {
+    console.error("Error al registrar venta:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error al registrar la venta",
+    });
+  }
+});
+
+// =========================================
+// GET /api/ventas -> Listar las ventas del usuario logueado
+// =========================================
+router.get("/ventas", authenticateUser, async (req, res) => {
+  try {
+    const allSales = await getData(credentials, spreadsheetId, "ventas");
+    const userSales = allSales.filter((row) => row[1] === req.user.username);
+
+    const result = userSales.map((row) => ({
+      id: row[0],
+      username: row[1],
+      nombreCliente: row[2],
+      monto: row[3],
+      fecha: row[4],
+      producto: row[5],
+    }));
+
+    return res.json(result);
+  } catch (error) {
+    console.error("Error al obtener ventas:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error al obtener las ventas",
+    });
+  }
+});
+
+// =========================================
+// DELETE /api/ventas/:id -> Eliminar una venta
+// =========================================
+router.delete("/ventas/:id", authenticateUser, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const allSales = await getData(credentials, spreadsheetId, "ventas");
+    const rowIndex = allSales.findIndex((row) => row[0] === id);
+
+    if (rowIndex === -1) {
+      return res.status(404).json({ success: false, message: "Venta no encontrada" });
+    }
+
+    if (allSales[rowIndex][1] !== req.user.username) {
+      return res.status(403).json({ success: false, message: "No tienes permiso para eliminar esta venta" });
+    }
+
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const targetRow = rowIndex + 2;
+    const emptyRow = ["", "", "", "", "", ""];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `ventas!A${targetRow}:F${targetRow}`,
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [emptyRow],
+      },
+    });
+
+    return res.json({ success: true, message: "Venta eliminada correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar venta:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error al eliminar la venta",
+    });
+  }
+});
 
 // Ruta para obtener extras
 router.get("/extras", async (_req, res) => {
@@ -107,6 +284,7 @@ router.post("/login", async (req, res) => {
   const { username, password, deviceId } = req.body;
 
   try {
+    // Obtenemos usuarios de Google Sheets
     const usuarios = await getData(credentials, spreadsheetId, "usuarios");
 
     let authenticatedUser = null;
@@ -116,43 +294,59 @@ router.post("/login", async (req, res) => {
       }
     });
 
-    if (authenticatedUser) {
-      const jwtSecret = config.JWT_SECRET || "supersecretkey";
-      const token = jwt.sign(
-        { username: authenticatedUser.username, deviceId },
-        jwtSecret,
-        { expiresIn: "1h" }
-      );
-
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      });
-
-      const sheets = google.sheets({ version: "v4", auth });
-
-      // Actualiza la pestaña active_sessions
-      await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: "active_sessions",
-        valueInputOption: "RAW",
-        requestBody: {
-          values: [[username, token, deviceId, "active"]],
-        },
-      });
-      /* console.log("Nueva sesión añadida en active_sessions para usuario:", username); */
-
-      res.json({ token: token, username: authenticatedUser.username });
-    } else {
-      res
-        .status(401)
-        .json({ success: false, message: "Usuario o contraseña incorrectos" });
+    if (!authenticatedUser) {
+      return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
     }
+
+    console.log("🔐 JWT_SECRET en el backend:", process.env.JWT_SECRET);
+
+    const token = jwt.sign(
+      { username: authenticatedUser.username, deviceId },
+      process.env.JWT_SECRET, // ⬅️ Asegúrate de que usa el mismo secreto
+      { expiresIn: "50h" }
+    );
+
+    console.log("✅ Token generado en login:", token);
+
+    res.json({ success: true, token, username: authenticatedUser.username });
   } catch (error) {
-    console.error("Error en el login:", error.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Error al intentar el login" });
+    console.error("❌ Error en el login:", error.message);
+    res.status(500).json({ success: false, message: "Error al intentar el login" });
+  }
+});
+
+router.get("/clientes", authenticateUser, async (req, res) => {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // Obtenemos datos desde la hoja "clientes"
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "clientes!A:E", // Ajustá el rango según tus columnas
+    });
+
+    // El array de filas (cada fila es un array de celdas)
+    const rows = result.data.values || [];
+
+    // Si tenés encabezados en la primera fila, podés saltearlos con slice(1)
+    // y mapear cada fila a un objeto
+    const clientes = rows.slice(1).map((row) => ({
+      nombre: row[0],
+      nombre_del_cliente: row[1],
+      direccion: row[2],
+      banco: row[3],
+      phone: row[4]
+    }));
+
+    // Devolvemos un objeto con la propiedad "clientes"
+    res.json({ clientes });
+  } catch (error) {
+    console.error("Error al obtener clientes:", error.message);
+    res.status(500).json({ success: false, message: "Error al obtener clientes" });
   }
 });
 
@@ -229,7 +423,7 @@ router.post("/validate-session", async (req, res) => {
   const { token, deviceId } = req.body;
 
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET || "supersecretkey");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // ⬅️ VERIFICAMOS EL TOKEN
 
     const activeSessions = await getData(credentials, spreadsheetId, "active_sessions");
     const sessionRow = activeSessions.find(
@@ -237,16 +431,13 @@ router.post("/validate-session", async (req, res) => {
     );
 
     if (!sessionRow) {
-      /* console.log("Sesión no encontrada para usuario:", decoded.username); */
-      return res.json({ valid: true }); // Considerar la sesión válida si no se encuentra explícitamente como inactive
+      return res.json({ valid: true }); // Consideramos la sesión válida si no se encuentra explícitamente como "inactive"
     }
 
     if (sessionRow[3] === "inactive") {
-      /* console.log("Sesión marcada como inactiva para usuario:", decoded.username); */
       return res.json({ valid: false });
     }
 
-    /* console.log("Validación exitosa para usuario:", decoded.username); */
     return res.json({ valid: true });
   } catch (error) {
     console.error("Error al validar el token:", error.message);
