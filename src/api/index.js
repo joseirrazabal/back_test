@@ -13,21 +13,21 @@ const router = express.Router();
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto
 
-console.log("JWT_SECRET en el backend:", process.env.JWT_SECRET);
+console.log("JWT_SECRET en el backend:", config.JWT_SECRET);
 
 // Middleware para autenticar usuario
 const authenticateUser = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
 
   console.log("🔍 Token recibido en el backend:", token);
-  console.log("🔐 JWT_SECRET en el backend:", process.env.JWT_SECRET);
+  console.log("🔐 JWT_SECRET en el backend:", config.JWT_SECRET);
 
   if (!token) {
     return res.status(401).json({ success: false, message: "Token no proporcionado" });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, config.JWT_SECRET);
     console.log("✅ Token decodificado correctamente:", decoded);
     req.user = decoded;
     next();
@@ -44,7 +44,7 @@ const authenticateAdmin = (req, res, next) => {
     return res.status(401).json({ success: false, message: "Token no proporcionado" });
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, config.JWT_SECRET);
     if (decoded.role !== "admin") {
       return res.status(403).json({ success: false, message: "Acceso denegado" });
     }
@@ -283,6 +283,8 @@ router.get("/bancos", async (_req, res) => {
 router.post("/login", async (req, res) => {
   const { username, password, deviceId } = req.body;
 
+  console.log("probando", username, password, deviceId)
+
   try {
     // Obtenemos usuarios de Google Sheets
     const usuarios = await getData(credentials, spreadsheetId, "usuarios");
@@ -295,14 +297,16 @@ router.post("/login", async (req, res) => {
     });
 
     if (!authenticatedUser) {
+      console.log("incorrecto")
+
       return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
     }
 
-    console.log("🔐 JWT_SECRET en el backend:", process.env.JWT_SECRET);
+    console.log("🔐 JWT_SECRET en el backend:", config.JWT_SECRET);
 
     const token = jwt.sign(
       { username: authenticatedUser.username, deviceId },
-      process.env.JWT_SECRET, // ⬅️ Asegúrate de que usa el mismo secreto
+      config.JWT_SECRET, // ⬅️ Asegúrate de que usa el mismo secreto
       { expiresIn: "50h" }
     );
 
@@ -423,7 +427,7 @@ router.post("/validate-session", async (req, res) => {
   const { token, deviceId } = req.body;
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // ⬅️ VERIFICAMOS EL TOKEN
+    const decoded = jwt.verify(token, config.JWT_SECRET); // ⬅️ VERIFICAMOS EL TOKEN
 
     const activeSessions = await getData(credentials, spreadsheetId, "active_sessions");
     const sessionRow = activeSessions.find(
