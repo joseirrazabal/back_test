@@ -18,21 +18,16 @@ console.log("JWT_SECRET en el backend:", config.JWT_SECRET);
 // Middleware para autenticar usuario
 const authenticateUser = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
-
-  console.log("🔍 Token recibido en el backend:", token);
-  console.log("🔐 JWT_SECRET en el backend:", config.JWT_SECRET);
-
   if (!token) {
     return res.status(401).json({ success: false, message: "Token no proporcionado" });
   }
-
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET);
-    console.log("✅ Token decodificado correctamente:", decoded);
+    console.log("Token decodificado:", decoded); // Log para verificar el token
     req.user = decoded;
     next();
   } catch (error) {
-    console.error("❌ Error al verificar token:", error.message);
+    console.error("Error al verificar token:", error.message);
     return res.status(401).json({ success: false, message: "Token inválido o expirado" });
   }
 };
@@ -330,20 +325,22 @@ router.get("/clientes", authenticateUser, async (req, res) => {
     // Obtenemos datos desde la hoja "clientes"
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "clientes!A:E", // Ajusta el rango según tus columnas
+      range: "clientes!A:E",
     });
-
     const rows = result.data.values || [];
 
-    // Si tienes encabezados en la primera fila, se saltea con slice(1)
-    // Filtramos las filas para que solo se incluyan aquellas cuyo primer valor (username)
-    // coincida con el usuario autenticado (req.user.username)
-    const filteredRows = rows.slice(1).filter((row) => row[0] === req.user.username);
+    // Normalizamos el username del usuario autenticado
+    const usuario = req.user.username.trim().toLowerCase();
+
+    // Filtramos las filas, descartando la fila de encabezados y normalizando cada username
+    const filteredRows = rows.slice(1).filter((row) => {
+      return row[0] && row[0].trim().toLowerCase() === usuario;
+    });
 
     // Mapear cada fila filtrada a un objeto
     const clientes = filteredRows.map((row) => ({
       username: row[0],
-      nombre_del_cliente: row[1],
+      nombre: row[1],
       direccion: row[2],
       banco: row[3],
       phone: row[4],
@@ -433,7 +430,6 @@ router.delete("/clientes", authenticateUser, async (req, res) => {
     res.status(500).json({ success: false, message: "Error al eliminar cliente" });
   }
 });
-
 
 // Ruta privada para listar usuarios con sesiones activas
 router.get("/admin/multiple-sessions", authenticateAdmin, async (_req, res) => {
