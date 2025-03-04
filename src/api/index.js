@@ -314,7 +314,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-
 router.get("/clientes", authenticateUser, async (req, res) => {
   try {
     const auth = new google.auth.GoogleAuth({
