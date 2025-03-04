@@ -330,29 +330,110 @@ router.get("/clientes", authenticateUser, async (req, res) => {
     // Obtenemos datos desde la hoja "clientes"
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "clientes!A:E", // Ajustá el rango según tus columnas
+      range: "clientes!A:E", // Ajusta el rango según tus columnas
     });
 
-    // El array de filas (cada fila es un array de celdas)
     const rows = result.data.values || [];
 
-    // Si tenés encabezados en la primera fila, podés saltearlos con slice(1)
-    // y mapear cada fila a un objeto
-    const clientes = rows.slice(1).map((row) => ({
-      nombre: row[0],
+    // Si tienes encabezados en la primera fila, se saltea con slice(1)
+    // Filtramos las filas para que solo se incluyan aquellas cuyo primer valor (username)
+    // coincida con el usuario autenticado (req.user.username)
+    const filteredRows = rows.slice(1).filter((row) => row[0] === req.user.username);
+
+    // Mapear cada fila filtrada a un objeto
+    const clientes = filteredRows.map((row) => ({
+      username: row[0],
       nombre_del_cliente: row[1],
       direccion: row[2],
       banco: row[3],
-      phone: row[4]
+      phone: row[4],
     }));
 
-    // Devolvemos un objeto con la propiedad "clientes"
     res.json({ clientes });
   } catch (error) {
     console.error("Error al obtener clientes:", error.message);
     res.status(500).json({ success: false, message: "Error al obtener clientes" });
   }
 });
+
+router.delete("/clientes", authenticateUser, async (req, res) => {
+  const { nombre_del_cliente, direccion, banco, phone } = req.body;
+  if (!nombre_del_cliente || !direccion || !banco || !phone) {
+    return res.status(400).json({ success: false, message: "Faltan datos" });
+  }
+
+  try {
+    // Autenticamos y preparamos la instancia de Google Sheets
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // Obtenemos todos los datos de la hoja "clientes"
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "clientes!A:E",
+    });
+    const rows = result.data.values || [];
+
+    // Buscar la fila (descontando la cabecera) que coincida con los datos y que pertenezca al usuario autenticado.
+    // El formato de cada fila es: [username, nombre_del_cliente, direccion, banco, phone]
+    let rowIndexToDelete = -1;
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (
+        row[0] === req.user.username &&
+        row[1] === nombre_del_cliente &&
+        row[2] === direccion &&
+        row[3] === banco &&
+        row[4] === phone
+      ) {
+        rowIndexToDelete = i;
+        break;
+      }
+    }
+
+    if (rowIndexToDelete === -1) {
+      return res.status(404).json({ success: false, message: "Cliente no encontrado" });
+    }
+
+    // Necesitamos obtener el sheetId de la hoja "clientes"
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const sheet = spreadsheet.data.sheets.find(
+      (sheet) => sheet.properties.title === "clientes"
+    );
+    if (!sheet) {
+      return res.status(500).json({ success: false, message: "No se encontró la hoja 'clientes'" });
+    }
+    const sheetId = sheet.properties.sheetId;
+
+    // Eliminamos la fila encontrada.
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId,
+                dimension: "ROWS",
+                startIndex: rowIndexToDelete,
+                endIndex: rowIndexToDelete + 1,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    res.json({ success: true, message: "Cliente eliminado correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar cliente:", error.message);
+    res.status(500).json({ success: false, message: "Error al eliminar cliente" });
+  }
+});
+
 
 // Ruta privada para listar usuarios con sesiones activas
 router.get("/admin/multiple-sessions", authenticateAdmin, async (_req, res) => {
