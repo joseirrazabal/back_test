@@ -13,7 +13,7 @@ const router = express.Router();
 const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto
 
-console.log("JWT_SECRET en el backend:", config.JWT_SECRET);
+/* console.log("JWT_SECRET en el backend:", config.JWT_SECRET); */
 
 // Middleware para autenticar usuario
 const authenticateUser = (req, res, next) => {
@@ -23,7 +23,7 @@ const authenticateUser = (req, res, next) => {
   }
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET);
-    console.log("Token decodificado:", decoded); // Log para verificar el token
+    //console.log("Token decodificado:", decoded); // Log para verificar el token
     req.user = decoded;
     next();
   } catch (error) {
@@ -278,7 +278,7 @@ router.get("/bancos", async (_req, res) => {
 router.post("/login", async (req, res) => {
   const { username, password, deviceId } = req.body;
 
-  console.log("probando", username, password, deviceId)
+  //console.log("probando", username, password, deviceId)
 
   try {
     // Obtenemos usuarios de Google Sheets
@@ -292,12 +292,12 @@ router.post("/login", async (req, res) => {
     });
 
     if (!authenticatedUser) {
-      console.log("incorrecto")
+      //console.log("incorrecto")
 
       return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
     }
 
-    console.log("🔐 JWT_SECRET en el backend:", config.JWT_SECRET);
+    //console.log("🔐 JWT_SECRET en el backend:", config.JWT_SECRET);
 
     const token = jwt.sign(
       { username: authenticatedUser.username, deviceId },
@@ -305,7 +305,7 @@ router.post("/login", async (req, res) => {
       { expiresIn: "50h" }
     );
 
-    console.log("✅ Token generado en login:", token);
+    //console.log("✅ Token generado en login:", token);
 
     res.json({ success: true, token, username: authenticatedUser.username });
   } catch (error) {
