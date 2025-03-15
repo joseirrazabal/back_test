@@ -526,22 +526,15 @@ router.post("/validate-session", async (req, res) => {
   }
 });
 
-// Código actualizado para incluir el rango y el código de emprendedora en el registro
+// Código actualizado para incluir el rango en el registro
 router.post("/register", async (req, res) => {
-  const { username, password, rango, codigo_emprendedora } = req.body; // Usamos el nombre correcto
+  const { username, password, rango } = req.body; // Incluimos rango en el cuerpo de la solicitud
 
-  if (!username || !password || !rango || !codigo_emprendedora) {
+  if (!username || !password || !rango) {
+    // Validamos que todos los campos estén presentes
     return res.status(400).json({
       success: false,
-      message: "Faltan datos requeridos (username, password, rango o código de emprendedora)",
-    });
-  }
-
-  // Validar que el código de emprendedora sea numérico y tenga entre 6 y 8 dígitos
-  if (!/^\d{6,8}$/.test(codigo_emprendedora)) {
-    return res.status(400).json({
-      success: false,
-      message: "El código de emprendedora debe ser numérico y tener entre 6 y 8 dígitos",
+      message: "Faltan datos requeridos (username, password o rango)",
     });
   }
 
@@ -553,39 +546,22 @@ router.post("/register", async (req, res) => {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // 🔹 Obtener los códigos ya registrados directamente dentro de `/register`
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "usuarios!D:D", // Suponiendo que la columna D almacena `codigo_emprendedora`
-    });
-
-    const existingCodes = response.data.values ? response.data.values.flat() : [];
-
-    // 🔹 Validar si el código ya existe
-    if (existingCodes.includes(codigo_emprendedora)) {
-      return res.status(400).json({
-        success: false,
-        message: "El código de emprendedora ya está registrado",
-      });
-    }
-
-    // 🔹 Registrar el usuario con todos los datos en la hoja
+    // Aseguramos que se registra el rango junto con el usuario y contraseña
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "usuarios!A:D", // Incluimos hasta la columna D para `codigo_emprendedora`
+      range: "usuarios!A:C", // Aseguramos que el rango incluye hasta la columna C
       valueInputOption: "RAW",
       requestBody: {
-        values: [[username, password, rango, codigo_emprendedora]], // Se mantiene el orden correcto
+        values: [[username, password, rango]], // Incluimos rango aquí
       },
     });
 
     res.json({ success: true, message: "Usuario registrado con éxito" });
   } catch (error) {
-    console.error("Error al registrar el usuario:", error);
+    console.error("Error al registrar el usuario:", error.message);
     res.status(500).json({
       success: false,
       message: "Hubo un problema al registrar el usuario",
-      error: error.message,
     });
   }
 });
