@@ -1,15 +1,15 @@
 import { google } from "googleapis";
 
-const readGoogleSheet = async (credentials, spreadsheetId, range) => {
+const readGoogleSheet = async (apiKey, spreadsheetId, range) => {
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
 
-    const client = await auth.getClient();
+    // const client = await auth.getClient();
 
-    const googleSheets = google.sheets({ version: "v4", auth: client });
+    const googleSheets = google.sheets({ version: "v4", auth: apiKey });
 
     const response = await googleSheets.spreadsheets.values.get({
       spreadsheetId,

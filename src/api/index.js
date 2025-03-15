@@ -10,7 +10,7 @@ dotenv.config(); // Carga las variables de entorno
 
 
 const router = express.Router();
-const credentials = config.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+const credentials = config.GOOGLE_API_KEY;
 const spreadsheetId = "1LZ0U2xWVxmYWoQ3dm0rtXM5arj8F_vZdyGCgdLgu4h4"; // Asegúrate de que este es el ID correcto
 
 /* console.log("JWT_SECRET en el backend:", config.JWT_SECRET); */
