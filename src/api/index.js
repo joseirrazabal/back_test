@@ -60,11 +60,11 @@ router.post("/clientes", authenticateUser, async (req, res) => {
   }
 
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
@@ -94,11 +94,11 @@ router.post("/ventas", authenticateUser, async (req, res) => {
   }
 
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
 
     const newId = uuidv4(); // Generamos un ID único
 
@@ -171,11 +171,11 @@ router.delete("/ventas/:id", authenticateUser, async (req, res) => {
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar esta venta" });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
 
     const targetRow = rowIndex + 2;
     const emptyRow = ["", "", "", "", "", ""];
@@ -215,12 +215,12 @@ router.post("/extras", async (req, res) => {
   const { banner } = req.body;
 
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
 
-    const sheets = google.sheets({ version: "v4", auth });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
@@ -316,11 +316,11 @@ router.post("/login", async (req, res) => {
 
 router.get("/clientes", authenticateUser, async (req, res) => {
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
 
     // Obtenemos datos desde la hoja "clientes"
     const result = await sheets.spreadsheets.values.get({
@@ -361,11 +361,11 @@ router.delete("/clientes", authenticateUser, async (req, res) => {
 
   try {
     // Autenticamos y preparamos la instancia de Google Sheets
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
 
     // Obtenemos todos los datos de la hoja "clientes"
     const result = await sheets.spreadsheets.values.get({
@@ -467,11 +467,11 @@ router.post("/admin/logout-user", authenticateAdmin, async (req, res) => {
       return res.status(404).json({ success: false, message: "Sesión no encontrada" });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -539,12 +539,12 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
 
-    const sheets = google.sheets({ version: "v4", auth });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
 
     // Aseguramos que se registra el rango junto con el usuario y contraseña
     await sheets.spreadsheets.values.append({
@@ -571,11 +571,11 @@ router.post("/update-password", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
     const usuarios = await getData(credentials, spreadsheetId, "usuarios");
 
     const rowIndex = usuarios.findIndex((user) => user.username === username);
@@ -602,11 +602,11 @@ router.post("/delete-account", async (req, res) => {
   const { username } = req.body;
 
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
+    // const auth = new google.auth.GoogleAuth({
+    //   credentials,
+    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // });
+    const sheets = google.sheets({ version: "v4", auth: credentials });
     const usuarios = await getData(credentials, spreadsheetId, "usuarios");
 
     const rowIndex = usuarios.findIndex((user) => user.username === username);
