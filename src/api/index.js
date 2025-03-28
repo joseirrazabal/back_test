@@ -241,11 +241,36 @@ router.post("/extras", async (req, res) => {
   }
 });
 
-// Ruta para obtener productos
-router.get("/productos", async (_req, res) => {
+// Ruta para obtener productos filtrados por cuota
+router.get("/productos", async (req, res) => {
   try {
     const productos = await getData(credentials, spreadsheetId, "productos");
-    res.json(productos);
+
+    const { cuota } = req.query;
+
+    const cuotasValidas = [
+      'contado', 'tres_sin_interes', 'seis_sin_interes', 'nueve_sin_interes',
+      'diez_sin_interes', 'doce_sin_interes', 'catorce_sin_interes',
+      'dieciocho_sin_interes', 'veinte_sin_interes', 'veinticuatro_sin_interes'
+    ];
+
+    // Si no se especifica cuota, devuelve todos los productos
+    if (!cuota) {
+      return res.json(productos);
+    }
+
+    // Validar cuota
+    if (!cuotasValidas.includes(cuota)) {
+      return res.status(400).json({ message: "La cuota especificada no es válida." });
+    }
+
+    // Filtrar productos según cuota
+    const productosFiltrados = productos.filter(producto => 
+      producto[cuota] && producto[cuota].toUpperCase() !== 'NO'
+    );
+
+    res.json(productosFiltrados);
+
   } catch (error) {
     console.error("Error al obtener productos:", error.message);
     res.status(500).json({ message: "Error al obtener productos" });
