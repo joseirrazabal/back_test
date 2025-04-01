@@ -1,13 +1,17 @@
 import express from "express";
 import { google } from "googleapis";
 import jwt from "jsonwebtoken";
-
 import config from "../config";
 import getData from "../api/getDataGSheet.js";
-import { v4 as uuidv4 } from "uuid";
+/* import { v4 as uuidv4 } from "uuid"; */
 import dotenv from "dotenv";
 dotenv.config(); // Carga las variables de entorno
 
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+}
 
 const router = express.Router();
 const credentials = config.GOOGLE_API_KEY;
@@ -77,125 +81,6 @@ router.post("/clientes", authenticateUser, async (req, res) => {
   } catch (error) {
     console.error("Error al agregar cliente:", error.message);
     res.status(500).json({ success: false, message: "Error al agregar cliente" });
-  }
-});
-
-// =========================================
-// POST /api/ventas -> Agregar una venta
-// =========================================
-router.post("/ventas", authenticateUser, async (req, res) => {
-  const { nombreCliente, monto, fecha, producto } = req.body;
-
-  if (!nombreCliente || !monto || !fecha || !producto) {
-    return res.status(400).json({
-      success: false,
-      message: "Faltan datos (nombreCliente, monto, fecha, producto)",
-    });
-  }
-
-  try {
-    // const auth = new google.auth.GoogleAuth({
-    //   credentials,
-    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    // });
-    const sheets = google.sheets({ version: "v4", auth: credentials });
-
-    const newId = uuidv4(); // Generamos un ID único
-
-    // Guardamos en Google Sheets
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: "ventas!A:F", 
-      valueInputOption: "RAW",
-      requestBody: {
-        values: [[newId, req.user.username, nombreCliente, monto, fecha, producto]],
-      },
-    });
-
-    return res.json({
-      success: true,
-      message: "Venta registrada correctamente",
-      id: newId,
-    });
-  } catch (error) {
-    console.error("Error al registrar venta:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error al registrar la venta",
-    });
-  }
-});
-
-// =========================================
-// GET /api/ventas -> Listar las ventas del usuario logueado
-// =========================================
-router.get("/ventas", authenticateUser, async (req, res) => {
-  try {
-    const allSales = await getData(credentials, spreadsheetId, "ventas");
-    const userSales = allSales.filter((row) => row[1] === req.user.username);
-
-    const result = userSales.map((row) => ({
-      id: row[0],
-      username: row[1],
-      nombreCliente: row[2],
-      monto: row[3],
-      fecha: row[4],
-      producto: row[5],
-    }));
-
-    return res.json(result);
-  } catch (error) {
-    console.error("Error al obtener ventas:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error al obtener las ventas",
-    });
-  }
-});
-
-// =========================================
-// DELETE /api/ventas/:id -> Eliminar una venta
-// =========================================
-router.delete("/ventas/:id", authenticateUser, async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const allSales = await getData(credentials, spreadsheetId, "ventas");
-    const rowIndex = allSales.findIndex((row) => row[0] === id);
-
-    if (rowIndex === -1) {
-      return res.status(404).json({ success: false, message: "Venta no encontrada" });
-    }
-
-    if (allSales[rowIndex][1] !== req.user.username) {
-      return res.status(403).json({ success: false, message: "No tienes permiso para eliminar esta venta" });
-    }
-
-    // const auth = new google.auth.GoogleAuth({
-    //   credentials,
-    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    // });
-    const sheets = google.sheets({ version: "v4", auth: credentials });
-
-    const targetRow = rowIndex + 2;
-    const emptyRow = ["", "", "", "", "", ""];
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `ventas!A${targetRow}:F${targetRow}`,
-      valueInputOption: "RAW",
-      requestBody: {
-        values: [emptyRow],
-      },
-    });
-
-    return res.json({ success: true, message: "Venta eliminada correctamente" });
-  } catch (error) {
-    console.error("Error al eliminar venta:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error al eliminar la venta",
-    });
   }
 });
 
@@ -327,7 +212,7 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign(
       { username: authenticatedUser.username, deviceId },
       config.JWT_SECRET, // ⬅️ Asegúrate de que usa el mismo secreto
-      { expiresIn: "50h" }
+      { expiresIn: "100h" }
     );
 
     //console.log("✅ Token generado en login:", token);
@@ -375,84 +260,6 @@ router.get("/clientes", authenticateUser, async (req, res) => {
   } catch (error) {
     console.error("Error al obtener clientes:", error.message);
     res.status(500).json({ success: false, message: "Error al obtener clientes" });
-  }
-});
-
-router.delete("/clientes", authenticateUser, async (req, res) => {
-  const { nombre_del_cliente, direccion, banco, phone } = req.body;
-  if (!nombre_del_cliente || !direccion || !banco || !phone) {
-    return res.status(400).json({ success: false, message: "Faltan datos" });
-  }
-
-  try {
-    // Autenticamos y preparamos la instancia de Google Sheets
-    // const auth = new google.auth.GoogleAuth({
-    //   credentials,
-    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    // });
-    const sheets = google.sheets({ version: "v4", auth: credentials });
-
-    // Obtenemos todos los datos de la hoja "clientes"
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "clientes!A:E",
-    });
-    const rows = result.data.values || [];
-
-    // Buscar la fila (descontando la cabecera) que coincida con los datos y que pertenezca al usuario autenticado.
-    // El formato de cada fila es: [username, nombre_del_cliente, direccion, banco, phone]
-    let rowIndexToDelete = -1;
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (
-        row[0] === req.user.username &&
-        row[1] === nombre_del_cliente &&
-        row[2] === direccion &&
-        row[3] === banco &&
-        row[4] === phone
-      ) {
-        rowIndexToDelete = i;
-        break;
-      }
-    }
-
-    if (rowIndexToDelete === -1) {
-      return res.status(404).json({ success: false, message: "Cliente no encontrado" });
-    }
-
-    // Necesitamos obtener el sheetId de la hoja "clientes"
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-    const sheet = spreadsheet.data.sheets.find(
-      (sheet) => sheet.properties.title === "clientes"
-    );
-    if (!sheet) {
-      return res.status(500).json({ success: false, message: "No se encontró la hoja 'clientes'" });
-    }
-    const sheetId = sheet.properties.sheetId;
-
-    // Eliminamos la fila encontrada.
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [
-          {
-            deleteDimension: {
-              range: {
-                sheetId,
-                dimension: "ROWS",
-                startIndex: rowIndexToDelete,
-                endIndex: rowIndexToDelete + 1,
-              },
-            },
-          },
-        ],
-      },
-    });
-
-    res.json({ success: true, message: "Cliente eliminado correctamente" });
-  } catch (error) {
-    console.error("Error al eliminar cliente:", error.message);
-    res.status(500).json({ success: false, message: "Error al eliminar cliente" });
   }
 });
 
