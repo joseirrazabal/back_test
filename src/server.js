@@ -1,4 +1,10 @@
 import "dotenv/config";
+if (process.env.NODE_ENV === "production") {
+  console.log = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+}
+
 import express from "express";
 import { createServer } from "http";
 import morgan from "morgan";
