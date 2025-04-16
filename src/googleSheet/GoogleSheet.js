@@ -85,6 +85,23 @@ class GoogleSheet {
       throw new Error(`No se pudo agregar el contenido a Google Sheets: ${error.message}`);
     }
   };
+
+  updateData = async (sheetName, range, values) => {
+    try {
+      await this.googleSheets.spreadsheets.values.update({
+        spreadsheetId: this.spreadsheetId,
+        range: `${sheetName}!${range}`,
+        valueInputOption: "RAW",
+        requestBody: { 
+          values 
+        },
+      });
+      return { success: true, message: "Datos actualizados con éxito" };
+    } catch (error) {
+      console.error(`Error al actualizar datos en ${sheetName}:`, error.message);
+      throw new Error(`No se pudo actualizar el contenido en Google Sheets: ${error.message}`);
+    }
+  };
 }
 
 export default GoogleSheet;
