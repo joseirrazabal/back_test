@@ -5,7 +5,7 @@ import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
 import config from "./config"; // Aquí importamos config
-import { notFound, errorHandler } from "./middlewares";
+import { notFound, errorHandler } from "./middleware/middlewares";
 import routes from "./routes";
 
 const getServer = async () => {
@@ -43,6 +43,7 @@ const getServer = async () => {
   app.use(express.urlencoded({ extended: true }));
 
   app.use(routes);
+
   app.use(notFound);
   app.use(errorHandler);
 
