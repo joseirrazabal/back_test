@@ -54,6 +54,34 @@ const authenticateAdmin = (req, res, next) => {
   }
 };
 
+// routes/usuarios.js o donde manejes tus endpoints
+router.post("/usuarios/actualizar-activo", async (req, res) => {
+  const { username, activo } = req.body;
+
+  if (!username || !activo) {
+    return res.status(400).json({ error: "Faltan datos" });
+  }
+
+  try {
+    // Suponiendo que usás Google Sheets y una función para editar celdas:
+    const sheet = await getSheet("usuarios"); // tu función para acceder a la hoja
+    const rows = await sheet.getRows();
+    const userRow = rows.find(row => row.username === username);
+
+    if (!userRow) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    userRow.activo = activo;
+    await userRow.save();
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Error actualizando activo:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
 // =========================================
 // POST /api/clientes -> Agregar un cliente
 // =========================================
