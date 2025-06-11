@@ -18,6 +18,8 @@ const getServer = async () => {
   const app = express();
   const server = createServer(app);
 
+  console.log("bien...")
+
   // Configuración de CORS
   const allowedOrigins = [
     "http://localhost:3000",
