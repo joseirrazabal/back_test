@@ -9,12 +9,10 @@ const googleSheet = new GoogleSheet(config.GOOGLE_CREDENTIALS, config.GOOGLE_SHE
 
 const router = express.Router()
 
-// Ruta para el login
 router.post("/login", async (req, res) => {
   const { username, password, deviceId } = req.body;
 
   try {
-    // Obtenemos usuarios de Google Sheets
     const usuarios = await googleSheet.getData("usuarios");
 
     let authenticatedUser = null;
@@ -28,13 +26,50 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
     }
 
+    // Consultar sesiones activas
+    const activeSessions = await googleSheet.getData("active_sessions");
+
+    const userSessions = activeSessions.filter(
+      (session) => session[0] === username
+    );
+
+    const uniqueDevices = new Set(userSessions.map((session) => session[2]));
+
+    // Si el dispositivo actual NO está entre los registrados y ya hay 3 → bloqueo
+    if (!uniqueDevices.has(deviceId) && uniqueDevices.size >= 3) {
+      return res.status(403).json({
+        success: false,
+        message: "Máximo de dispositivos alcanzado para este usuario.",
+        showModal: true,
+      });
+    }
+
+    // Guardar la sesión si aún no existe
+    const existingSession = userSessions.find(
+      (session) => session[2] === deviceId
+    );
+
+    if (!existingSession) {
+      await googleSheet.addData("active_sessions", {
+        username,
+        fecha: new Date().toLocaleString("es-AR"),
+        deviceId,
+        status: "active",
+      });
+    }
+
     const token = jwt.sign(
       { username: authenticatedUser.username, deviceId },
-      config.JWT_SECRET, // ⬅️ Asegúrate de que usa el mismo secreto
+      config.JWT_SECRET,
       { expiresIn: "50h" }
     );
 
-    res.json({ success: true, token, username: authenticatedUser.username });
+    res.json({
+      success: true,
+      token,
+      username: authenticatedUser.username,
+    });
+
   } catch (error) {
     console.error("❌ Error en el login:", error.message);
     res.status(500).json({ success: false, message: "Error al intentar el login" });
@@ -67,29 +102,40 @@ router.post("/validate-session", async (req, res) => {
   }
 });
 
-// Código actualizado para incluir el rango en el registro
+// ✅ Ruta para registrar usuario nuevo
 router.post("/register", async (req, res) => {
   try {
+    // 🟢 Extraemos todos los datos esperados
+    const { username, password, rango, codigo_emprendedora } = req.body;
 
-    const { username, password, rango } = req.body; // Incluimos rango en el cuerpo de la solicitud
-
-    if (!username || !password || rango) {
-      // Validamos que todos los campos estén presentes
+    // ❌ Validamos que no falte ninguno
+    if (!username || !password || !rango || !codigo_emprendedora) {
       return res.status(400).json({
         success: false,
-        message: "Faltan datos requeridos (username, password o rango)",
+        message: "Faltan datos requeridos (username, password, rango o código)",
       });
     }
 
-    const resultado = await googleSheet.addData("usuarios", { username, password, rango });
+    // 📝 Guardamos en la hoja de Google
+    const resultado = await googleSheet.addData("usuarios", {
+      username,
+      password,
+      rango,
+      codigo_emprendedora,
+    });
 
-    res.json(resultado);
+    // 🔁 Devolvemos la respuesta exitosa
+    res.json({
+      success: true,
+      message: "Usuario registrado correctamente",
+      data: resultado,
+    });
 
   } catch (error) {
-    console.error("Error al registrar usuario:", error.message);
+    console.error("❌ Error al registrar usuario:", error.message);
     res.status(500).json({
       success: false,
-      message: "Error al registrar usuario"
+      message: "Error al registrar usuario",
     });
   }
 });
