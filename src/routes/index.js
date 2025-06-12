@@ -7,7 +7,7 @@ import { authenticateUser } from "../middleware/auth.js";
 const router = express.Router();
 
 router.use("/auth", login);
-router.use("/api", authenticateUser, api);
+router.use("/api", api); // sin authenticateUser
 
 router.get("/healthcheck", (req, res) => {
   res.send("ok");
