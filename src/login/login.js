@@ -1,12 +1,9 @@
 import express from "express"
 import jwt from "jsonwebtoken";
-
 import config from "../config/index.js";
-
 import GoogleSheet from "../googleSheet/GoogleSheet.js";
 
 const googleSheet = new GoogleSheet(config.GOOGLE_CREDENTIALS, config.GOOGLE_SHEET_ID)
-
 const router = express.Router()
 
 router.post("/login", async (req, res) => {
@@ -26,16 +23,10 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
     }
 
-    // Consultar sesiones activas
     const activeSessions = await googleSheet.getData("active_sessions");
+    const userSessions = activeSessions.filter(session => session[0] === username);
+    const uniqueDevices = new Set(userSessions.map(session => session[2]));
 
-    const userSessions = activeSessions.filter(
-      (session) => session[0] === username
-    );
-
-    const uniqueDevices = new Set(userSessions.map((session) => session[2]));
-
-    // Si el dispositivo actual NO está entre los registrados y ya hay 3 → bloqueo
     if (!uniqueDevices.has(deviceId) && uniqueDevices.size >= 3) {
       return res.status(403).json({
         success: false,
@@ -44,11 +35,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Guardar la sesión si aún no existe
-    const existingSession = userSessions.find(
-      (session) => session[2] === deviceId
-    );
-
+    const existingSession = userSessions.find(session => session[2] === deviceId);
     if (!existingSession) {
       await googleSheet.addData("active_sessions", {
         username,
@@ -68,7 +55,9 @@ router.post("/login", async (req, res) => {
       success: true,
       token,
       username: authenticatedUser.username,
+      tipo_usuario: authenticatedUser.rango || "full" // <- default si falta
     });
+
 
   } catch (error) {
     console.error("❌ Error en el login:", error.message);
@@ -80,20 +69,14 @@ router.post("/validate-session", async (req, res) => {
   const { token, deviceId } = req.body;
 
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET); // ⬅️ VERIFICAMOS EL TOKEN
-
+    const decoded = jwt.verify(token, config.JWT_SECRET);
     const activeSessions = await googleSheet.getData("active_sessions");
     const sessionRow = activeSessions.find(
       (row) => row[0] === decoded.username && row[2] === deviceId
     );
 
-    if (!sessionRow) {
-      return res.json({ valid: true }); // Consideramos la sesión válida si no se encuentra explícitamente como "inactive"
-    }
-
-    if (sessionRow[3] === "inactive") {
-      return res.json({ valid: false });
-    }
+    if (!sessionRow) return res.json({ valid: true });
+    if (sessionRow[3] === "inactive") return res.json({ valid: false });
 
     return res.json({ valid: true });
   } catch (error) {
@@ -102,13 +85,11 @@ router.post("/validate-session", async (req, res) => {
   }
 });
 
-// ✅ Ruta para registrar usuario nuevo
+// ✅ Registro con tipo_usuario = "gratis" por defecto
 router.post("/register", async (req, res) => {
   try {
-    // 🟢 Extraemos todos los datos esperados
     const { username, password, rango, codigo_emprendedora } = req.body;
 
-    // ❌ Validamos que no falte ninguno
     if (!username || !password || !rango || !codigo_emprendedora) {
       return res.status(400).json({
         success: false,
@@ -116,15 +97,14 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // 📝 Guardamos en la hoja de Google
     const resultado = await googleSheet.addData("usuarios", {
       username,
       password,
       rango,
       codigo_emprendedora,
+      tipo_usuario: "gratis", // <--- Nuevo campo obligatorio por defecto
     });
 
-    // 🔁 Devolvemos la respuesta exitosa
     res.json({
       success: true,
       message: "Usuario registrado correctamente",
@@ -140,4 +120,4 @@ router.post("/register", async (req, res) => {
   }
 });
 
-export default router
+export default router;
