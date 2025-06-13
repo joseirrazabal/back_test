@@ -2,17 +2,20 @@ import express from "express";
 import config from "../../config";
 import GoogleSheet from "../../googleSheet/GoogleSheet";
 import { google } from "googleapis";
+import { authenticateUser } from "../../middleware/auth.js";
 
 const router = express.Router();
+router.use(authenticateUser);
+
 const googleSheet = new GoogleSheet(config.GOOGLE_CREDENTIALS, config.GOOGLE_SHEET_ID);
-const SHEET_NAME = "clientes";
 const sheets = google.sheets({ version: "v4", auth: googleSheet.auth });
+const SHEET_NAME = "clientes";
 const RANGE = `${SHEET_NAME}!A:E`;
-const USUARIO_TEMPORAL = "demo_user"; // reemplazar por req.user.username cuando actives auth
 
 // Agregar cliente
 router.post("/", async (req, res) => {
   const { nombre, direccion, banco, phone } = req.body;
+  const usuario = req.user.username.trim().toLowerCase();
 
   if (!nombre || !direccion || !banco || !phone) {
     return res.status(400).json({ success: false, message: "Faltan datos" });
@@ -24,7 +27,7 @@ router.post("/", async (req, res) => {
       range: RANGE,
       valueInputOption: "RAW",
       requestBody: {
-        values: [[USUARIO_TEMPORAL, nombre, direccion, banco, phone]],
+        values: [[usuario, nombre, direccion, banco, phone]],
       },
     });
 
@@ -37,6 +40,8 @@ router.post("/", async (req, res) => {
 
 // Obtener clientes del usuario
 router.get("/", async (req, res) => {
+  const usuario = req.user.username.trim().toLowerCase();
+
   try {
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId: config.GOOGLE_SHEET_ID,
@@ -47,7 +52,7 @@ router.get("/", async (req, res) => {
 
     const clientes = rows
       .slice(1)
-      .filter((row) => row[0]?.trim().toLowerCase() === USUARIO_TEMPORAL)
+      .filter((row) => row[0]?.trim().toLowerCase() === usuario)
       .map((row) => ({
         username: row[0],
         nombre: row[1],
@@ -66,6 +71,7 @@ router.get("/", async (req, res) => {
 // Eliminar cliente
 router.delete("/", async (req, res) => {
   const { nombre_del_cliente, direccion, banco, phone } = req.body;
+  const usuario = req.user.username.trim().toLowerCase();
 
   if (!nombre_del_cliente || !direccion || !banco || !phone) {
     return res.status(400).json({ success: false, message: "Faltan datos" });
@@ -83,7 +89,7 @@ router.delete("/", async (req, res) => {
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       if (
-        row[0] === USUARIO_TEMPORAL &&
+        row[0]?.trim().toLowerCase() === usuario &&
         row[1] === nombre_del_cliente &&
         row[2] === direccion &&
         row[3] === banco &&
@@ -148,6 +154,8 @@ router.put("/", async (req, res) => {
     nuevoPhone,
   } = req.body;
 
+  const usuario = req.user.username.trim().toLowerCase();
+
   try {
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId: config.GOOGLE_SHEET_ID,
@@ -160,7 +168,7 @@ router.put("/", async (req, res) => {
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       if (
-        row[0] === USUARIO_TEMPORAL &&
+        row[0]?.trim().toLowerCase() === usuario &&
         row[1] === nombre &&
         row[2] === direccion &&
         row[3] === banco &&
