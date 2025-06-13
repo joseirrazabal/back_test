@@ -1,26 +1,31 @@
-import express from "express"
-
+import express from "express";
 import config from "../../config";
-import GoogleSheet from "../../googleSheet/GoogleSheet.js";
+import GoogleSheet from "../../googleSheet/GoogleSheet";
+import { google } from "googleapis";
 
-const router = express.Router()
+const router = express.Router();
+const googleSheet = new GoogleSheet(config.GOOGLE_CREDENTIALS, config.GOOGLE_SHEET_ID);
+const SHEET_NAME = "clientes";
+const sheets = google.sheets({ version: "v4", auth: googleSheet.auth });
+const RANGE = `${SHEET_NAME}!A:E`;
+const USUARIO_TEMPORAL = "demo_user"; // reemplazar por req.user.username cuando actives auth
 
-const googleSheet = new GoogleSheet(config.GOOGLE_CREDENTIALS, config.GOOGLE_SHEET_ID)
-
-router.post("/clientes", async (req, res) => {
+// Agregar cliente
+router.post("/", async (req, res) => {
   const { nombre, direccion, banco, phone } = req.body;
+
   if (!nombre || !direccion || !banco || !phone) {
     return res.status(400).json({ success: false, message: "Faltan datos" });
   }
 
   try {
-    const sheets = google.sheets({ version: "v4", auth: config.GOOGLE_API_KEY });
-
     await sheets.spreadsheets.values.append({
       spreadsheetId: config.GOOGLE_SHEET_ID,
-      range: "clientes!A:E", // Actualizamos el rango para incluir el teléfono
+      range: RANGE,
       valueInputOption: "RAW",
-      requestBody: { values: [[req.user.username, nombre, direccion, banco, phone]] },
+      requestBody: {
+        values: [[USUARIO_TEMPORAL, nombre, direccion, banco, phone]],
+      },
     });
 
     res.json({ success: true, message: "Cliente agregado correctamente" });
@@ -30,37 +35,26 @@ router.post("/clientes", async (req, res) => {
   }
 });
 
-router.get("/clientes", async (req, res) => {
+// Obtener clientes del usuario
+router.get("/", async (req, res) => {
   try {
-    // const auth = new google.auth.GoogleAuth({
-    //   credentials,
-    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    // });
-    const sheets = google.sheets({ version: "v4", auth: credentials });
-
-    // Obtenemos datos desde la hoja "clientes"
     const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "clientes!A:E",
+      spreadsheetId: config.GOOGLE_SHEET_ID,
+      range: RANGE,
     });
+
     const rows = result.data.values || [];
 
-    // Normalizamos el username del usuario autenticado
-    const usuario = req.user.username.trim().toLowerCase();
-
-    // Filtramos las filas, descartando la fila de encabezados y normalizando cada username
-    const filteredRows = rows.slice(1).filter((row) => {
-      return row[0] && row[0].trim().toLowerCase() === usuario;
-    });
-
-    // Mapear cada fila filtrada a un objeto
-    const clientes = filteredRows.map((row) => ({
-      username: row[0],
-      nombre: row[1],
-      direccion: row[2],
-      banco: row[3],
-      phone: row[4],
-    }));
+    const clientes = rows
+      .slice(1)
+      .filter((row) => row[0]?.trim().toLowerCase() === USUARIO_TEMPORAL)
+      .map((row) => ({
+        username: row[0],
+        nombre: row[1],
+        direccion: row[2],
+        banco: row[3],
+        phone: row[4],
+      }));
 
     res.json({ clientes });
   } catch (error) {
@@ -69,34 +63,27 @@ router.get("/clientes", async (req, res) => {
   }
 });
 
-router.delete("/clientes", async (req, res) => {
+// Eliminar cliente
+router.delete("/", async (req, res) => {
   const { nombre_del_cliente, direccion, banco, phone } = req.body;
+
   if (!nombre_del_cliente || !direccion || !banco || !phone) {
     return res.status(400).json({ success: false, message: "Faltan datos" });
   }
 
   try {
-    // Autenticamos y preparamos la instancia de Google Sheets
-    // const auth = new google.auth.GoogleAuth({
-    //   credentials,
-    //   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    // });
-    const sheets = google.sheets({ version: "v4", auth: credentials });
-
-    // Obtenemos todos los datos de la hoja "clientes"
     const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "clientes!A:E",
+      spreadsheetId: config.GOOGLE_SHEET_ID,
+      range: RANGE,
     });
-    const rows = result.data.values || [];
 
-    // Buscar la fila (descontando la cabecera) que coincida con los datos y que pertenezca al usuario autenticado.
-    // El formato de cada fila es: [username, nombre_del_cliente, direccion, banco, phone]
+    const rows = result.data.values || [];
     let rowIndexToDelete = -1;
+
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       if (
-        row[0] === req.user.username &&
+        row[0] === USUARIO_TEMPORAL &&
         row[1] === nombre_del_cliente &&
         row[2] === direccion &&
         row[3] === banco &&
@@ -111,25 +98,26 @@ router.delete("/clientes", async (req, res) => {
       return res.status(404).json({ success: false, message: "Cliente no encontrado" });
     }
 
-    // Necesitamos obtener el sheetId de la hoja "clientes"
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: config.GOOGLE_SHEET_ID,
+    });
+
     const sheet = spreadsheet.data.sheets.find(
-      (sheet) => sheet.properties.title === "clientes"
+      (s) => s.properties.title === SHEET_NAME
     );
+
     if (!sheet) {
       return res.status(500).json({ success: false, message: "No se encontró la hoja 'clientes'" });
     }
-    const sheetId = sheet.properties.sheetId;
 
-    // Eliminamos la fila encontrada.
     await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
+      spreadsheetId: config.GOOGLE_SHEET_ID,
       requestBody: {
         requests: [
           {
             deleteDimension: {
               range: {
-                sheetId,
+                sheetId: sheet.properties.sheetId,
                 dimension: "ROWS",
                 startIndex: rowIndexToDelete,
                 endIndex: rowIndexToDelete + 1,
@@ -147,4 +135,60 @@ router.delete("/clientes", async (req, res) => {
   }
 });
 
-export default router
+// Editar cliente
+router.put("/", async (req, res) => {
+  const {
+    nombre,
+    direccion,
+    banco,
+    phone,
+    nuevoNombre,
+    nuevaDireccion,
+    nuevoBanco,
+    nuevoPhone,
+  } = req.body;
+
+  try {
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.GOOGLE_SHEET_ID,
+      range: RANGE,
+    });
+
+    const rows = result.data.values || [];
+    let rowIndexToUpdate = -1;
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (
+        row[0] === USUARIO_TEMPORAL &&
+        row[1] === nombre &&
+        row[2] === direccion &&
+        row[3] === banco &&
+        row[4] === phone
+      ) {
+        rowIndexToUpdate = i;
+        break;
+      }
+    }
+
+    if (rowIndexToUpdate === -1) {
+      return res.status(404).json({ success: false, message: "Cliente no encontrado" });
+    }
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.GOOGLE_SHEET_ID,
+      range: `clientes!B${rowIndexToUpdate + 1}:E${rowIndexToUpdate + 1}`,
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[nuevoNombre, nuevaDireccion, nuevoBanco, nuevoPhone]],
+      },
+    });
+
+    res.json({ success: true, message: "Cliente actualizado correctamente" });
+  } catch (error) {
+    console.error("Error al actualizar cliente:", error.message);
+    res.status(500).json({ success: false, message: "Error al actualizar cliente" });
+  }
+});
+
+export default router;
